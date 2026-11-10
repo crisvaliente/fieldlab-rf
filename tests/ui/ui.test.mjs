@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 let chromium;
 try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/npm-tools/node_modules/playwright')); }
 
-const url = pathToFileURL('dist/index.html').href;
+const url = process.env.APP_URL || pathToFileURL('dist/index.html').href;
 const shots = process.env.SHOTS_DIR;
 if (shots) mkdirSync(shots, { recursive: true });
 const results = [];
