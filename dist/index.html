@@ -1,0 +1,2725 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FieldLab RF</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* Disposición: plano a la izquierda (fijo al desplazar), instrumentos con pestañas a la derecha; una columna en móvil. */
+:root {
+  --bg: #e8ecf0; --panel: #f8fafb; --plan: #fdfefe; --fg: #152231; --muted: #586675; --rule: #c7d0d9; --grid: #dce3e9;
+  --ap: #5a3ec2; --ma: #bd5208; --mb: #00766a; --wall: #8a3324;
+  --ok: #1a7341; --bad: #b3261e; --warn: #845600; --focus: #1f6feb; --inv: #f8fafb;
+  --ok-bg: #dff1e5; --bad-bg: #f9dedc; --warn-bg: #f6e9c8; --synth-bg: #e3def7;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151b; --panel: #172029; --plan: #0c1116; --fg: #e4ebf2; --muted: #94a2b1; --rule: #2b3846; --grid: #1f2a35;
+    --ap: #a892ff; --ma: #ff9a4d; --mb: #3ecdbb; --wall: #e58e79;
+    --ok: #62d18c; --bad: #ff8d84; --warn: #f0c060; --focus: #6ea8ff; --inv: #0f151b;
+    --ok-bg: #173524; --bad-bg: #40201e; --warn-bg: #3a2f12; --synth-bg: #2a2550;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151b; --panel: #172029; --plan: #0c1116; --fg: #e4ebf2; --muted: #94a2b1; --rule: #2b3846; --grid: #1f2a35;
+  --ap: #a892ff; --ma: #ff9a4d; --mb: #3ecdbb; --wall: #e58e79;
+  --ok: #62d18c; --bad: #ff8d84; --warn: #f0c060; --focus: #6ea8ff; --inv: #0f151b;
+  --ok-bg: #173524; --bad-bg: #40201e; --warn-bg: #3a2f12; --synth-bg: #2a2550;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 24px;
+}
+#root { max-width: 1480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+h1, h3, h4, p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; border-bottom: 2px solid var(--fg); padding-bottom: 8px; }
+.eyebrow { font: 600 11px/1 var(--cond); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+h1 { font: 600 26px/1 var(--cond); letter-spacing: 0.01em; }
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+
+.app { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.stage { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 10px; }
+.side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.tabpanel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@media (max-width: 980px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .stage { position: static; }
+  .app[data-tab="exp"] .stage, .app[data-tab="data"] .stage, .app[data-tab="learn"] .stage { display: none; }
+  .app[data-tab="exp"] .side, .app[data-tab="data"] .side, .app[data-tab="learn"] .side { order: -1; }
+  .app .side { order: 0; }
+  input, select, textarea { font-size: 16px; }
+}
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.seg { display: inline-flex; border: 1px solid var(--fg); border-radius: 3px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); padding: 7px 12px; min-height: 36px; cursor: pointer; font: 600 13px var(--cond); letter-spacing: 0.04em; }
+.seg button + button { border-left: 1px solid var(--fg); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--inv); }
+.toolhint { min-height: 0; font-size: 12.5px; color: var(--warn); }
+.toolhint:empty { display: none; }
+.planwrap { background: var(--bg); border: 1px solid var(--rule); border-radius: 2px; }
+#plan { display: block; width: 100%; margin: 0 auto; touch-action: none; cursor: crosshair; font-family: var(--mono); user-select: none; -webkit-user-select: none; }
+.planlegend, .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.planlegend > span, .legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.layerbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; border-top: 1px solid var(--rule); padding-top: 8px; }
+.scalewrap { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; min-width: 0; }
+.legend-scale { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); }
+.ramp { display: inline-block; width: 120px; height: 10px; border: 1px solid var(--rule); }
+.inspector { border-top: 1px solid var(--rule); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.insp-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+
+.sym { display: inline-block; width: 11px; height: 11px; flex: none; margin-right: 6px; vertical-align: -1px; }
+.planlegend .sym { margin-right: 0; }
+.s-rx { background: var(--fg); border-radius: 50%; }
+.s-a { border: 2px solid var(--ma); }
+.s-b { border: 2px solid var(--mb); transform: rotate(45deg) scale(0.85); }
+.s-ap { background: var(--ap); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.s-wall { background: var(--wall); height: 5px; width: 14px; vertical-align: 2px; }
+.s-cal { background: var(--muted); width: 5px; height: 5px; border-radius: 50%; vertical-align: 2px; }
+.legend i { display: inline-block; width: 10px; height: 10px; }
+.k-a { background: var(--ma); }
+.k-b { background: var(--mb); transform: rotate(45deg) scale(0.85); }
+
+.tabs { display: flex; gap: 0; overflow-x: auto; border-bottom: 1px solid var(--fg); scrollbar-width: none; }
+.tabs button { flex: 1 0 auto; border: 0; border-bottom: 3px solid transparent; background: none; padding: 10px 12px; min-height: 42px; cursor: pointer; font: 600 13px var(--cond); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--fg); }
+
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card > div:not(.row):not(.fields):not(.scroll-x) { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+h3 { font: 600 12px/1.2 var(--cond); letter-spacing: 0.12em; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1px solid var(--rule); text-wrap: balance; }
+h3 small { font: 400 12px var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); margin-left: 6px; }
+h4 { font: 600 12px/1.2 var(--cond); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.fine { font-size: 12.5px; color: var(--muted); max-width: 75ch; }
+.muted { color: var(--muted); }
+.strong { font-weight: 600; }
+code, .mono-s { font-family: var(--mono); font-size: 12px; }
+.mono-s { overflow-wrap: anywhere; }
+
+.row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.row.measure { align-items: flex-end; }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 12.5px; }
+.field > span:first-child { color: var(--muted); }
+.field small { color: var(--muted); font-size: 11.5px; }
+.field.wide { width: 100%; }
+.field.inline { flex-direction: row; align-items: center; gap: 8px; }
+.inp { display: flex; align-items: center; border: 1px solid var(--rule); border-radius: 3px; background: var(--plan); }
+.inp:focus-within { border-color: var(--focus); }
+.inp input { border: 0; background: transparent; padding: 7px 8px; width: 100%; min-width: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; outline-offset: 0; }
+.inp em { font-style: normal; color: var(--muted); padding-right: 8px; font-size: 12px; white-space: nowrap; }
+.inp input:disabled { color: var(--muted); }
+select, textarea, input[type="text"], .field > input[type="number"] { border: 1px solid var(--rule); border-radius: 3px; background: var(--plan); padding: 7px 8px; min-width: 0; max-width: 100%; }
+.field > input[type="number"], input[type="text"] { font-family: var(--mono); }
+textarea { width: 100%; font-family: var(--mono); font-size: 12px; resize: vertical; }
+textarea#expHyp { font-family: var(--sans); font-size: 14px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+.check input { margin-top: 3px; flex: none; width: 16px; height: 16px; accent-color: var(--fg); }
+
+.btn { border: 1px solid var(--fg); background: var(--panel); border-radius: 3px; padding: 8px 14px; min-height: 38px; cursor: pointer; font: 600 13px var(--cond); letter-spacing: 0.04em; display: inline-flex; align-items: center; }
+.btn:hover, .seg button:hover { filter: brightness(0.96); }
+.btn.primary { background: var(--fg); color: var(--inv); }
+.btn.small { padding: 4px 10px; min-height: 30px; font-size: 12px; }
+.btn.danger { border-color: var(--bad); color: var(--bad); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.link, button.link { border: 0; background: none; padding: 0; color: var(--ap); font: 600 13px var(--mono); cursor: pointer; text-decoration: underline; min-height: 0; }
+.filebtn { position: relative; overflow: hidden; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.filebtn:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.chip { display: inline-block; font: 600 11px/1 var(--cond); letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 7px; border-radius: 2px; white-space: nowrap; }
+.chip.ok { background: var(--ok-bg); color: var(--ok); }
+.chip.bad { background: var(--bad-bg); color: var(--bad); }
+.chip.synth { background: var(--synth-bg); color: var(--ap); }
+.note { font-size: 13px; padding: 8px 10px; border-left: 3px solid var(--rule); background: var(--plan); max-width: 80ch; }
+.note.warn { border-color: var(--warn); background: var(--warn-bg); }
+.note.bad { border-color: var(--bad); background: var(--bad-bg); }
+.note.ok { border-color: var(--ok); background: var(--ok-bg); }
+.hyp { font-size: 13.5px; border-left: 3px solid var(--fg); padding-left: 10px; max-width: 80ch; }
+
+.scroll-x { overflow-x: auto; max-width: 100%; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th { font: 600 11px/1.25 var(--cond); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); vertical-align: bottom; white-space: nowrap; }
+thead th small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+tbody th { font-weight: 600; white-space: nowrap; }
+.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.mono-s { white-space: nowrap; }
+tr.off { color: var(--muted); }
+tr.sel td, tr.sel th { background: var(--plan); }
+tr.reason td { color: var(--bad); font-size: 12.5px; border-bottom: 1px solid var(--rule); }
+.readout td.strong { font-size: 15px; }
+
+dl.kv { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 3px 14px; margin: 0; font-size: 13px; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; }
+details { border-top: 1px solid var(--rule); padding-top: 8px; display: flex; flex-direction: column; }
+details:first-child { border-top: 0; padding-top: 0; }
+details > summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+details[open] > summary { margin-bottom: 8px; }
+details > * + * { margin-top: 8px; }
+.prose p + p { margin-top: 8px; }
+.prose p, .exercise p, .exercise li { max-width: 70ch; }
+.exercise ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+ul.reading { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 13px; max-width: 80ch; }
+.formula { border-left: 3px solid var(--fg); padding-left: 12px; display: flex; flex-direction: column; gap: 6px; }
+.formula + .formula { margin-top: 4px; }
+.eq { font: 14px/1.6 var(--mono); overflow-x: auto; white-space: nowrap; padding-bottom: 2px; }
+.runbar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; }
+.chartbox { overflow-x: auto; }
+.chart { display: block; font-family: var(--mono); }
+.charttitle { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.foot { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 8px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div id="root"><noscript>FieldLab RF necesita JavaScript.</noscript></div>
+<script>
+(() => {
+  var __defProp = Object.defineProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+
+  // src/engine/index.js
+  var engine_exports = {};
+  __export(engine_exports, {
+    COORD_ABS_MAX: () => COORD_ABS_MAX,
+    CSV_COLUMNS: () => CSV_COLUMNS,
+    CSV_REQUIRED: () => CSV_REQUIRED,
+    DEFAULT_MISSING: () => DEFAULT_MISSING,
+    DEFAULT_MODEL: () => DEFAULT_MODEL,
+    PRESETS: () => PRESETS,
+    RSSI_MAX: () => RSSI_MAX,
+    RSSI_MIN: () => RSSI_MIN,
+    RSSI_WARN_HIGH: () => RSSI_WARN_HIGH,
+    RSSI_WARN_LOW: () => RSSI_WARN_LOW,
+    STANDARD_APS: () => STANDARD_APS,
+    STANDARD_WALLS: () => STANDARD_WALLS,
+    TRI_STATUS: () => TRI_STATUS,
+    VARIABLES: () => VARIABLES,
+    analyzeDataset: () => analyzeDataset,
+    apSpreadRatio: () => apSpreadRatio,
+    baseConfig: () => baseConfig,
+    buildCalibration: () => buildCalibration,
+    buildFingerprintDb: () => buildFingerprintDb,
+    clone: () => clone,
+    dist: () => dist,
+    errorHeatmap: () => errorHeatmap,
+    evaluateConfig: () => evaluateConfig,
+    exampleDatasetCsv: () => exampleDatasetCsv,
+    exportCsv: () => exportCsv,
+    generateSamples: () => generateSamples,
+    gridPositions: () => gridPositions,
+    hashSeed: () => hashSeed,
+    histogram: () => histogram,
+    importCsv: () => importCsv,
+    invertRssi: () => invertRssi,
+    knnEstimate: () => knnEstimate,
+    liveScene: () => liveScene,
+    locate: () => locate,
+    makeRng: () => makeRng,
+    mean: () => mean,
+    meanRssi: () => meanRssi,
+    median: () => median,
+    mulberry32: () => mulberry32,
+    noisyReading: () => noisyReading,
+    parseCsvText: () => parseCsvText,
+    pathLossDb: () => pathLossDb,
+    percentile: () => percentile,
+    pointSegmentDistance: () => pointSegmentDistance,
+    randomPositions: () => randomPositions,
+    resultDigest: () => resultDigest,
+    rmse: () => rmse,
+    rssiDistance: () => rssiDistance,
+    runSweep: () => runSweep,
+    segmentsIntersect: () => segmentsIntersect,
+    stdev: () => stdev,
+    summarize: () => summarize,
+    trilaterate: () => trilaterate,
+    validateModel: () => validateModel,
+    wallLossDb: () => wallLossDb
+  });
+
+  // src/engine/rng.js
+  function hashSeed(...parts) {
+    const s = parts.map((p) => String(p)).join("");
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    h ^= h >>> 16;
+    h = Math.imul(h, 2246822507);
+    h ^= h >>> 13;
+    h = Math.imul(h, 3266489909);
+    h ^= h >>> 16;
+    return h >>> 0;
+  }
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function next() {
+      a = a + 1831565813 >>> 0;
+      let t = a;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function makeRng(seed, ...labels) {
+    const next = mulberry32(hashSeed(seed, ...labels));
+    return {
+      next,
+      uniform(a = 0, b = 1) {
+        return a + (b - a) * next();
+      },
+      gaussian() {
+        let u = next();
+        if (u < 1e-12) u = 1e-12;
+        const v = next();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+      }
+    };
+  }
+
+  // src/engine/geometry.js
+  function dist(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+  function orient(ax, ay, bx, by, cx, cy) {
+    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  }
+  function onSeg(ax, ay, bx, by, px, py, eps) {
+    return px >= Math.min(ax, bx) - eps && px <= Math.max(ax, bx) + eps && py >= Math.min(ay, by) - eps && py <= Math.max(ay, by) + eps;
+  }
+  function segmentsIntersect(p1, p2, p3, p4, eps = 1e-9) {
+    const d1 = orient(p3.x, p3.y, p4.x, p4.y, p1.x, p1.y);
+    const d2 = orient(p3.x, p3.y, p4.x, p4.y, p2.x, p2.y);
+    const d3 = orient(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+    const d4 = orient(p1.x, p1.y, p2.x, p2.y, p4.x, p4.y);
+    if ((d1 > eps && d2 < -eps || d1 < -eps && d2 > eps) && (d3 > eps && d4 < -eps || d3 < -eps && d4 > eps)) return true;
+    if (Math.abs(d1) <= eps && onSeg(p3.x, p3.y, p4.x, p4.y, p1.x, p1.y, eps)) return true;
+    if (Math.abs(d2) <= eps && onSeg(p3.x, p3.y, p4.x, p4.y, p2.x, p2.y, eps)) return true;
+    if (Math.abs(d3) <= eps && onSeg(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, eps)) return true;
+    if (Math.abs(d4) <= eps && onSeg(p1.x, p1.y, p2.x, p2.y, p4.x, p4.y, eps)) return true;
+    return false;
+  }
+  function pointSegmentDistance(p, a, b) {
+    const vx = b.x - a.x, vy = b.y - a.y;
+    const l2 = vx * vx + vy * vy;
+    let t = l2 === 0 ? 0 : ((p.x - a.x) * vx + (p.y - a.y) * vy) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + t * vx), p.y - (a.y + t * vy));
+  }
+
+  // src/engine/propagation.js
+  var DEFAULT_MODEL = Object.freeze({ p0: -40, n: 2.5, d0: 1, sigma: 3, floor: -95 });
+  function validateModel(m) {
+    const errs = [];
+    if (!Number.isFinite(m.p0)) errs.push("P0 debe ser un n\xFAmero (dBm).");
+    if (!(m.n > 0)) errs.push("El exponente n debe ser > 0.");
+    if (!(m.d0 > 0)) errs.push("d0 debe ser > 0 m.");
+    if (m.sigma != null && !(m.sigma >= 0)) errs.push("\u03C3 debe ser \u2265 0 dB.");
+    return errs;
+  }
+  function pathLossDb(d, model) {
+    const dEff = Math.max(d, model.d0);
+    return 10 * model.n * Math.log10(dEff / model.d0);
+  }
+  function wallLossDb(a, b, walls) {
+    let total = 0;
+    const crossed = [];
+    for (const w of walls || []) {
+      if (segmentsIntersect(a, b, { x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 })) {
+        total += w.att;
+        crossed.push(w.id);
+      }
+    }
+    return { total, crossed };
+  }
+  function meanRssi(ap, rx, env) {
+    const m = env.model;
+    const d = dist(ap, rx);
+    const pl = pathLossDb(d, m);
+    const wl = wallLossDb(ap, rx, env.walls);
+    return {
+      d,
+      clamped: d < m.d0,
+      pathLoss: pl,
+      wallLoss: wl.total,
+      crossed: wl.crossed,
+      rssi: m.p0 + (ap.offset || 0) - pl - wl.total
+    };
+  }
+  function noisyReading(mean2, model, z) {
+    const v = mean2 + (model.sigma || 0) * z;
+    return v < model.floor ? null : v;
+  }
+  function invertRssi(rssi, assumed) {
+    if (rssi == null || !Number.isFinite(rssi)) return { d: null, saturated: false };
+    if (rssi >= assumed.p0) return { d: assumed.d0, saturated: true };
+    return { d: assumed.d0 * Math.pow(10, (assumed.p0 - rssi) / (10 * assumed.n)), saturated: false };
+  }
+
+  // src/engine/stats.js
+  function mean(xs) {
+    if (!xs.length) return null;
+    let s = 0;
+    for (const x of xs) s += x;
+    return s / xs.length;
+  }
+  function stdev(xs) {
+    if (xs.length < 2) return null;
+    const m = mean(xs);
+    let s = 0;
+    for (const x of xs) s += (x - m) * (x - m);
+    return Math.sqrt(s / (xs.length - 1));
+  }
+  function percentile(xs, p) {
+    if (!xs.length) return null;
+    const s = [...xs].sort((a, b) => a - b);
+    const h = (s.length - 1) * (p / 100);
+    const lo = Math.floor(h), hi = Math.ceil(h);
+    return s[lo] + (s[hi] - s[lo]) * (h - lo);
+  }
+  function median(xs) {
+    return percentile(xs, 50);
+  }
+  function rmse(xs) {
+    if (!xs.length) return null;
+    let s = 0;
+    for (const x of xs) s += x * x;
+    return Math.sqrt(s / xs.length);
+  }
+  function summarize(errors, nFailed = 0) {
+    const nOk = errors.length;
+    const nTotal = nOk + nFailed;
+    return {
+      nTotal,
+      nOk,
+      nFailed,
+      failRate: nTotal ? nFailed / nTotal : null,
+      mean: mean(errors),
+      median: median(errors),
+      rmse: rmse(errors),
+      p90: percentile(errors, 90),
+      max: nOk ? Math.max(...errors) : null
+    };
+  }
+  function histogram(xs, nBins, max) {
+    const top = max ?? (xs.length ? Math.max(...xs) : 1);
+    const width = top > 0 ? top / nBins : 1;
+    const bins = Array.from({ length: nBins }, (_, i) => ({ x0: i * width, x1: (i + 1) * width, count: 0 }));
+    for (const x of xs) {
+      const i = Math.min(nBins - 1, Math.max(0, Math.floor(x / width)));
+      bins[i].count++;
+    }
+    return bins;
+  }
+
+  // src/engine/trilateration.js
+  var TRI_STATUS = {
+    OK: "ok",
+    FEW_APS: "ap_insuficientes",
+    DEGENERATE: "geometria_degenerada",
+    NO_CONVERGENCE: "sin_convergencia"
+  };
+  function apSpreadRatio(points) {
+    const n = points.length;
+    if (n < 2) return 0;
+    let mx = 0, my = 0;
+    for (const p of points) {
+      mx += p.x;
+      my += p.y;
+    }
+    mx /= n;
+    my /= n;
+    let sxx = 0, syy = 0, sxy = 0;
+    for (const p of points) {
+      const dx = p.x - mx, dy = p.y - my;
+      sxx += dx * dx;
+      syy += dy * dy;
+      sxy += dx * dy;
+    }
+    const tr = sxx + syy;
+    const disc = Math.sqrt(Math.max(0, (sxx - syy) * (sxx - syy) + 4 * sxy * sxy));
+    const lMax = (tr + disc) / 2, lMin = Math.max(0, (tr - disc) / 2);
+    if (lMax <= 1e-12) return 0;
+    return Math.sqrt(lMin / lMax);
+  }
+  function cost(p, obs) {
+    let c = 0;
+    for (const o of obs) {
+      let r = Math.hypot(p.x - o.x, p.y - o.y) - o.d;
+      if (o.sat && r < 0) r = 0;
+      c += o.w * r * r;
+    }
+    return c;
+  }
+  function linearInit(obs) {
+    const ref = obs[obs.length - 1];
+    let a11 = 0, a12 = 0, a22 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < obs.length - 1; i++) {
+      const o = obs[i];
+      const ax = 2 * (o.x - ref.x), ay = 2 * (o.y - ref.y);
+      const b = ref.d * ref.d - o.d * o.d + o.x * o.x + o.y * o.y - ref.x * ref.x - ref.y * ref.y;
+      a11 += ax * ax;
+      a12 += ax * ay;
+      a22 += ay * ay;
+      b1 += ax * b;
+      b2 += ay * b;
+    }
+    const det = a11 * a22 - a12 * a12;
+    if (Math.abs(det) < 1e-9) return null;
+    return { x: (a22 * b1 - a12 * b2) / det, y: (a11 * b2 - a12 * b1) / det };
+  }
+  function levenbergMarquardt(start, obs, maxIter, tol) {
+    let p = { ...start };
+    let c = cost(p, obs);
+    let lambda = 1e-3;
+    let converged = false;
+    let iter = 0;
+    let lastStep = Infinity;
+    for (; iter < maxIter; iter++) {
+      let h11 = 0, h12 = 0, h22 = 0, g1 = 0, g2 = 0;
+      for (const o of obs) {
+        let dx = p.x - o.x, dy = p.y - o.y;
+        let r = Math.hypot(dx, dy);
+        if (r < 1e-9) {
+          dx = 1e-9;
+          dy = 0;
+          r = 1e-9;
+        }
+        const jx = dx / r, jy = dy / r;
+        const res = r - o.d;
+        if (o.sat && res < 0) continue;
+        h11 += o.w * jx * jx;
+        h12 += o.w * jx * jy;
+        h22 += o.w * jy * jy;
+        g1 += o.w * jx * res;
+        g2 += o.w * jy * res;
+      }
+      if (Math.hypot(g1, g2) < 1e-12) {
+        converged = true;
+        break;
+      }
+      let accepted = false;
+      for (let tries = 0; tries < 30; tries++) {
+        const a11 = h11 * (1 + lambda) + 1e-12, a22 = h22 * (1 + lambda) + 1e-12;
+        const det = a11 * a22 - h12 * h12;
+        if (Math.abs(det) < 1e-18) {
+          lambda *= 4;
+          continue;
+        }
+        const sx = -(a22 * g1 - h12 * g2) / det;
+        const sy = -(a11 * g2 - h12 * g1) / det;
+        const q2 = { x: p.x + sx, y: p.y + sy };
+        const cq = cost(q2, obs);
+        if (Number.isFinite(cq) && cq <= c) {
+          const step = Math.hypot(sx, sy);
+          lastStep = step;
+          if (c - cq <= 1e-12 * (1 + c)) converged = true;
+          p = q2;
+          c = cq;
+          lambda = Math.max(lambda / 3, 1e-9);
+          accepted = true;
+          if (step < tol) converged = true;
+          break;
+        }
+        lambda *= 4;
+      }
+      if (!accepted) {
+        converged = true;
+        break;
+      }
+      if (converged) {
+        iter++;
+        break;
+      }
+    }
+    if (!converged && lastStep < 1e-3) converged = true;
+    return { p, cost: c, iterations: iter, converged };
+  }
+  function trilaterate(aps, rssi, assumed, opts = {}) {
+    const weighted = opts.weighted !== false;
+    const minSpread = opts.minSpread ?? 0.05;
+    const distances = [];
+    const obs = [];
+    for (const ap of aps) {
+      const v = rssi[ap.id];
+      const inv = invertRssi(v, assumed);
+      const entry = { apId: ap.id, rssi: v ?? null, d: inv.d, saturated: inv.saturated, used: inv.d != null };
+      distances.push(entry);
+      if (inv.d != null) obs.push({ id: ap.id, x: ap.x, y: ap.y, d: inv.d, sat: inv.saturated, w: weighted ? 1 / (inv.d * inv.d) : 1 });
+    }
+    const base = { method: "A", distances, nUsed: obs.length, weighted, x: null, y: null };
+    if (obs.length < 3) {
+      return {
+        ...base,
+        ok: false,
+        status: TRI_STATUS.FEW_APS,
+        reason: `Se necesitan al menos 3 AP con se\xF1al; hay ${obs.length}.`
+      };
+    }
+    const spread = apSpreadRatio(obs);
+    if (spread < minSpread) {
+      return {
+        ...base,
+        ok: false,
+        status: TRI_STATUS.DEGENERATE,
+        spread,
+        reason: `Los AP con se\xF1al son casi colineales (dispersi\xF3n ${spread.toFixed(3)} < ${minSpread}): la soluci\xF3n es ambigua respecto de esa l\xEDnea.`
+      };
+    }
+    let sw = 0, cx = 0, cy = 0, mx = 0, my = 0;
+    for (const o of obs) {
+      const w = 1 / (o.d * o.d);
+      sw += w;
+      cx += w * o.x;
+      cy += w * o.y;
+      mx += o.x;
+      my += o.y;
+    }
+    const starts = [
+      { name: "lineal", p: linearInit(obs) },
+      { name: "centroide ponderado", p: { x: cx / sw, y: cy / sw } },
+      { name: "centroide de AP", p: { x: mx / obs.length, y: my / obs.length } }
+    ].filter((s) => s.p && Number.isFinite(s.p.x) && Number.isFinite(s.p.y));
+    let best = null;
+    for (const s of starts) {
+      const r = levenbergMarquardt(s.p, obs, opts.maxIter ?? 3e3, 1e-6);
+      if (!Number.isFinite(r.p.x) || !Number.isFinite(r.p.y) || !r.converged) continue;
+      if (!best || r.cost < best.cost - 1e-12) best = { ...r, start: s.name, startPoint: s.p };
+    }
+    if (!best) {
+      return {
+        ...base,
+        ok: false,
+        status: TRI_STATUS.NO_CONVERGENCE,
+        spread,
+        reason: "La minimizaci\xF3n no convergi\xF3 desde ning\xFAn punto de partida."
+      };
+    }
+    let ss = 0;
+    for (const e of distances) {
+      if (!e.used) continue;
+      const ap = aps.find((a) => a.id === e.apId);
+      e.fitDistance = Math.hypot(best.p.x - ap.x, best.p.y - ap.y);
+      e.residual = e.saturated ? Math.max(0, e.fitDistance - e.d) : e.fitDistance - e.d;
+      ss += e.residual * e.residual;
+    }
+    return {
+      ...base,
+      ok: true,
+      status: TRI_STATUS.OK,
+      reason: null,
+      x: best.p.x,
+      y: best.p.y,
+      cost: best.cost,
+      iterations: best.iterations,
+      start: best.start,
+      startPoint: best.startPoint,
+      spread,
+      residualRms: Math.sqrt(ss / obs.length)
+    };
+  }
+
+  // src/engine/fingerprint.js
+  var DEFAULT_MISSING = -100;
+  function buildFingerprintDb(samples, opts = {}) {
+    const groups = /* @__PURE__ */ new Map();
+    const apSet = /* @__PURE__ */ new Set();
+    const sampleIds = /* @__PURE__ */ new Set();
+    for (const s of samples) {
+      if (s.role !== "calibration") {
+        throw new Error(`buildFingerprintDb: la muestra "${s.id}" tiene rol "${s.role}"; solo se admiten muestras de calibraci\xF3n.`);
+      }
+      if (!Number.isFinite(s.x) || !Number.isFinite(s.y)) {
+        throw new Error(`buildFingerprintDb: la muestra de calibraci\xF3n "${s.id}" no tiene coordenadas.`);
+      }
+      sampleIds.add(s.id);
+      const key = `${s.x.toFixed(6)},${s.y.toFixed(6)}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = { x: s.x, y: s.y, sum: {}, cnt: {}, count: 0, sampleIds: [] };
+        groups.set(key, g);
+      }
+      g.count++;
+      g.sampleIds.push(s.id);
+      for (const [ap, v] of Object.entries(s.rssi)) {
+        apSet.add(ap);
+        if (v == null) continue;
+        g.sum[ap] = (g.sum[ap] || 0) + v;
+        g.cnt[ap] = (g.cnt[ap] || 0) + 1;
+      }
+    }
+    const apIds = [...apSet].sort();
+    const points = [...groups.values()].map((g) => {
+      const rssi = {};
+      for (const ap of apIds) rssi[ap] = g.cnt[ap] ? g.sum[ap] / g.cnt[ap] : null;
+      return { x: g.x, y: g.y, rssi, count: g.count, sampleIds: g.sampleIds };
+    });
+    return { apIds, points, sampleIds, missingValue: opts.missingValue ?? DEFAULT_MISSING };
+  }
+  function rssiDistance(q2, f2, apIds, missingValue = DEFAULT_MISSING) {
+    let s = 0;
+    for (const ap of apIds) {
+      const a = q2[ap] == null ? missingValue : q2[ap];
+      const b = f2[ap] == null ? missingValue : f2[ap];
+      s += (a - b) * (a - b);
+    }
+    return Math.sqrt(s / apIds.length);
+  }
+  function knnEstimate(db, query, opts = {}) {
+    const k = Math.max(1, Math.floor(opts.k ?? 3));
+    const weighted = opts.weighted !== false;
+    const base = { method: "B", ok: false, x: null, y: null, neighbors: [], k };
+    if (!db || !db.points.length) {
+      return { ...base, status: "sin_calibracion", reason: "No hay mapa de huellas: hacen falta muestras de calibraci\xF3n." };
+    }
+    const ignoredAps = Object.keys(query).filter((ap) => !db.apIds.includes(ap));
+    const missingInQuery = db.apIds.filter((ap) => query[ap] == null);
+    const usedAps = db.apIds.filter((ap) => query[ap] != null);
+    if (!usedAps.length) {
+      return {
+        ...base,
+        ignoredAps,
+        missingInQuery,
+        usedAps,
+        status: "sin_senal_comun",
+        reason: "La medici\xF3n no contiene ninguna se\xF1al de los AP presentes en el mapa de huellas."
+      };
+    }
+    const ranked = db.points.map((pt, index) => ({
+      index,
+      x: pt.x,
+      y: pt.y,
+      rssi: pt.rssi,
+      dist: rssiDistance(query, pt.rssi, db.apIds, db.missingValue)
+    })).sort((a, b) => a.dist - b.dist || a.index - b.index);
+    const kUsed = Math.min(k, ranked.length);
+    const neighbors = ranked.slice(0, kUsed);
+    let sw = 0, x = 0, y = 0;
+    for (const nb of neighbors) {
+      nb.weight = weighted ? 1 / (nb.dist + 1e-3) : 1;
+      sw += nb.weight;
+      x += nb.weight * nb.x;
+      y += nb.weight * nb.y;
+    }
+    for (const nb of neighbors) nb.weight /= sw;
+    return {
+      ...base,
+      ok: true,
+      status: "ok",
+      reason: null,
+      x: x / sw,
+      y: y / sw,
+      neighbors,
+      kUsed,
+      kReduced: kUsed < k,
+      weighted,
+      usedAps,
+      ignoredAps,
+      missingInQuery
+    };
+  }
+
+  // src/engine/dataset.js
+  function gridPositions(room, spacing) {
+    const pts = [];
+    const nx = Math.max(1, Math.round(room.w / spacing));
+    const ny = Math.max(1, Math.round(room.h / spacing));
+    const sx = room.w / nx, sy = room.h / ny;
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) pts.push({ x: (i + 0.5) * sx, y: (j + 0.5) * sy });
+    return pts;
+  }
+  function randomPositions(room, n, seed, margin = 0.3) {
+    const rng = makeRng(seed, "eval-pos");
+    const mx = Math.min(margin, room.w / 4), my = Math.min(margin, room.h / 4);
+    const pts = [];
+    for (let i = 0; i < n; i++) pts.push({ x: rng.uniform(mx, room.w - mx), y: rng.uniform(my, room.h - my) });
+    return pts;
+  }
+  function generateSamples(env, positions, opts) {
+    const { seed, role, reads = 1, prefix = role === "calibration" ? "cal" : "ev", experimentId = "sintetico", detail = false, tick = 0 } = opts;
+    const aps = env.aps.filter((a) => a.enabled !== false);
+    return positions.map((pos, s) => {
+      const rssi = {};
+      const info = {};
+      for (const ap of aps) {
+        const m = meanRssi(ap, pos, env);
+        const rng = makeRng(seed, "noise", role, tick, s, ap.id);
+        let sum = 0, cnt = 0;
+        const values = [];
+        for (let r = 0; r < reads; r++) {
+          const v = noisyReading(m.rssi, env.model, rng.gaussian());
+          values.push(v);
+          if (v != null) {
+            sum += v;
+            cnt++;
+          }
+        }
+        rssi[ap.id] = cnt ? sum / cnt : null;
+        if (detail) info[ap.id] = { ...m, values, nValid: cnt };
+      }
+      const sample = {
+        id: `${prefix}-${String(s + 1).padStart(4, "0")}`,
+        experimentId,
+        role,
+        x: role === "unlabeled" ? null : pos.x,
+        y: role === "unlabeled" ? null : pos.y,
+        rssi,
+        source: "synthetic",
+        timestamp: null
+      };
+      if (detail) sample.detail = info;
+      return sample;
+    });
+  }
+
+  // src/engine/csv.js
+  var CSV_COLUMNS = ["experiment_id", "sample_id", "ap_id", "rssi_dbm", "x_m", "y_m", "role", "timestamp_iso", "source"];
+  var CSV_REQUIRED = ["experiment_id", "sample_id", "ap_id", "rssi_dbm"];
+  var RSSI_MIN = -120;
+  var RSSI_MAX = 0;
+  var RSSI_WARN_HIGH = -20;
+  var RSSI_WARN_LOW = -100;
+  var COORD_ABS_MAX = 1e3;
+  var ROLE_ALIASES = {
+    calibration: "calibration",
+    calibracion: "calibration",
+    "calibraci\xF3n": "calibration",
+    evaluation: "evaluation",
+    evaluacion: "evaluation",
+    "evaluaci\xF3n": "evaluation",
+    unlabeled: "unlabeled",
+    sin_etiqueta: "unlabeled",
+    "": null
+  };
+  function parseCsvText(text, delimiter) {
+    const rows = [];
+    let row = [], field = "", inQ = false, line = 1, rowLine = 1;
+    const s = text.replace(/^﻿/, "");
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (inQ) {
+        if (c === '"') {
+          if (s[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else inQ = false;
+        } else {
+          if (c === "\n") line++;
+          field += c;
+        }
+      } else if (c === '"') inQ = true;
+      else if (c === delimiter) {
+        row.push(field);
+        field = "";
+      } else if (c === "\n" || c === "\r") {
+        if (c === "\r" && s[i + 1] === "\n") i++;
+        row.push(field);
+        field = "";
+        if (row.length > 1 || row[0].trim() !== "") rows.push({ line: rowLine, cells: row });
+        row = [];
+        line++;
+        rowLine = line;
+      } else field += c;
+    }
+    row.push(field);
+    if (row.length > 1 || row[0].trim() !== "") rows.push({ line: rowLine, cells: row });
+    return { rows, unterminatedQuote: inQ };
+  }
+  function detectDelimiter(text) {
+    const first = text.replace(/^﻿/, "").split(/\r?\n/)[0] || "";
+    const counts = { ",": 0, ";": 0, "	": 0 };
+    for (const c of first) if (c in counts) counts[c]++;
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  }
+  function parseNumber(raw) {
+    const t = raw.trim();
+    if (t === "") return { empty: true };
+    if (/^-?\d+,\d+$/.test(t)) return { error: `"${t}" usa coma decimal; el esquema exige punto decimal (por ejemplo ${t.replace(",", ".")}).` };
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(t)) return { error: `"${t}" no es un n\xFAmero.` };
+    return { value: Number(t) };
+  }
+  function importCsv(text, opts = {}) {
+    const errors = [], warnings = [];
+    const err = (line, field, message) => {
+      if (errors.length < 200) errors.push({ line, field, message });
+    };
+    const warn = (line, field, message) => {
+      if (warnings.length < 200) warnings.push({ line, field, message });
+    };
+    const fail = () => ({ ok: false, errors, warnings, samples: [], meta: {} });
+    if (typeof text !== "string" || text.trim() === "") {
+      err(0, null, "El archivo est\xE1 vac\xEDo.");
+      return fail();
+    }
+    const delimiter = detectDelimiter(text);
+    const { rows, unterminatedQuote } = parseCsvText(text, delimiter);
+    if (unterminatedQuote) err(0, null, "Hay una comilla doble sin cerrar.");
+    if (!rows.length) {
+      err(0, null, "El archivo no tiene encabezado.");
+      return fail();
+    }
+    const header = rows[0].cells.map((h) => h.trim().toLowerCase());
+    const col = {};
+    header.forEach((h, i) => {
+      if (h in col) err(1, h, `Columna repetida: "${h}".`);
+      col[h] = i;
+    });
+    for (const req of CSV_REQUIRED) {
+      if (!(req in col)) {
+        let hint = "";
+        if (req === "rssi_dbm" && header.some((h) => h.startsWith("rssi"))) hint = " Hay una columna RSSI sin unidad en el nombre: debe llamarse rssi_dbm y estar en dBm.";
+        err(1, req, `Falta la columna obligatoria "${req}".${hint}`);
+      }
+    }
+    if ("x_m" in col !== "y_m" in col) err(1, "x_m/y_m", "Las columnas x_m e y_m deben estar ambas o ninguna.");
+    for (const h of header) {
+      if (!CSV_COLUMNS.includes(h)) {
+        if (h === "x" || h === "y") err(1, h, `La columna "${h}" no indica unidad: us\xE1 ${h}_m (metros).`);
+        else warn(1, h, `Columna desconocida "${h}": se ignora.`);
+      }
+    }
+    if (errors.length) return fail();
+    const get = (r, name) => name in col ? (r.cells[col[name]] ?? "").trim() : "";
+    const samples = /* @__PURE__ */ new Map();
+    const seenPairs = /* @__PURE__ */ new Set();
+    let nRows = 0, nMissing = 0;
+    for (const r of rows.slice(1)) {
+      nRows++;
+      if (r.cells.length !== header.length) {
+        err(r.line, null, `La fila tiene ${r.cells.length} campos y el encabezado ${header.length}.`);
+        continue;
+      }
+      const experimentId = get(r, "experiment_id"), sampleId = get(r, "sample_id"), apId = get(r, "ap_id");
+      if (!experimentId) err(r.line, "experiment_id", "experiment_id vac\xEDo.");
+      if (!sampleId) err(r.line, "sample_id", "sample_id vac\xEDo.");
+      if (!apId) err(r.line, "ap_id", "ap_id vac\xEDo.");
+      let rssi = null;
+      const rv = parseNumber(get(r, "rssi_dbm"));
+      if (rv.error) err(r.line, "rssi_dbm", rv.error);
+      else if (rv.empty) nMissing++;
+      else if (rv.value > RSSI_MAX) err(r.line, "rssi_dbm", `RSSI ${rv.value} dBm es positivo: \xBFest\xE1 en otra unidad (mW, %, valor absoluto)? Se esperan dBm entre ${RSSI_MIN} y ${RSSI_MAX}.`);
+      else if (rv.value < RSSI_MIN) err(r.line, "rssi_dbm", `RSSI ${rv.value} dBm est\xE1 por debajo de ${RSSI_MIN} dBm: fuera del rango f\xEDsico admitido.`);
+      else {
+        rssi = rv.value;
+        if (rssi > RSSI_WARN_HIGH) warn(r.line, "rssi_dbm", `RSSI ${rssi} dBm es inusualmente alto (> ${RSSI_WARN_HIGH} dBm).`);
+        else if (rssi < RSSI_WARN_LOW) warn(r.line, "rssi_dbm", `RSSI ${rssi} dBm es inusualmente bajo (< ${RSSI_WARN_LOW} dBm).`);
+      }
+      const xv = parseNumber(get(r, "x_m")), yv = parseNumber(get(r, "y_m"));
+      let x = null, y = null;
+      if (xv.error) err(r.line, "x_m", xv.error);
+      if (yv.error) err(r.line, "y_m", yv.error);
+      if (!xv.error && !yv.error) {
+        if (!!xv.empty !== !!yv.empty) err(r.line, "x_m/y_m", "Coordenada incompleta: x_m e y_m deben estar ambas o ninguna.");
+        else if (!xv.empty) {
+          x = xv.value;
+          y = yv.value;
+          if (Math.abs(x) > COORD_ABS_MAX || Math.abs(y) > COORD_ABS_MAX) err(r.line, "x_m/y_m", `Coordenada (${x}, ${y}) fuera de \xB1${COORD_ABS_MAX} m: \xBFest\xE1 en cm o mm?`);
+          else if (opts.room && (x < 0 || y < 0 || x > opts.room.w || y > opts.room.h)) warn(r.line, "x_m/y_m", `La posici\xF3n (${x}, ${y}) m cae fuera del recinto actual (${opts.room.w} \xD7 ${opts.room.h} m).`);
+        }
+      }
+      const roleRaw = get(r, "role").toLowerCase();
+      let role = ROLE_ALIASES[roleRaw];
+      if (role === void 0) {
+        err(r.line, "role", `Rol "${roleRaw}" no reconocido: us\xE1 calibration, evaluation o unlabeled.`);
+        role = null;
+      }
+      const hasPos = x != null;
+      if (role == null) role = hasPos ? "evaluation" : "unlabeled";
+      if ((role === "calibration" || role === "evaluation") && !hasPos) err(r.line, "role", `El rol "${role}" exige posici\xF3n conocida (x_m, y_m).`);
+      if (role === "unlabeled" && hasPos) err(r.line, "role", 'Una muestra "unlabeled" no debe traer coordenadas; si la posici\xF3n es conocida, declarala como calibration o evaluation.');
+      const ts = get(r, "timestamp_iso");
+      if (ts && (!/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/.test(ts) || Number.isNaN(Date.parse(ts.replace(" ", "T"))))) {
+        err(r.line, "timestamp_iso", `"${ts}" no es una marca temporal ISO 8601 (ejemplo: 2026-11-10T14:30:00Z).`);
+      }
+      const sourceRaw = get(r, "source").toLowerCase();
+      if (sourceRaw && !["synthetic", "measured"].includes(sourceRaw)) err(r.line, "source", `source "${sourceRaw}" no reconocido: us\xE1 synthetic o measured.`);
+      const source = sourceRaw || "undeclared";
+      if (!sampleId || !apId || !experimentId) continue;
+      const key = `${experimentId}${sampleId}`;
+      const pair = `${key}${apId}`;
+      if (seenPairs.has(pair)) {
+        err(r.line, "ap_id", `Fila duplicada: la muestra "${sampleId}" ya tiene una lectura del AP "${apId}".`);
+        continue;
+      }
+      seenPairs.add(pair);
+      let smp = samples.get(key);
+      if (!smp) {
+        smp = { id: sampleId, experimentId, role, x, y, rssi: {}, source, timestamp: ts || null, line: r.line };
+        samples.set(key, smp);
+      } else {
+        if (smp.role !== role) err(r.line, "role", `La muestra "${sampleId}" tiene roles distintos en filas diferentes (${smp.role} en la l\xEDnea ${smp.line}, ${role} aqu\xED).`);
+        if (smp.x !== x || smp.y !== y) err(r.line, "x_m/y_m", `La muestra "${sampleId}" tiene coordenadas distintas en filas diferentes (l\xEDnea ${smp.line}).`);
+        if (smp.source !== source) err(r.line, "source", `La muestra "${sampleId}" declara or\xEDgenes distintos en filas diferentes.`);
+      }
+      smp.rssi[apId] = rssi;
+    }
+    if (nRows === 0) err(0, null, "El archivo solo tiene encabezado: no hay mediciones.");
+    if (errors.length) return fail();
+    const list = [...samples.values()];
+    for (const s of list) {
+      delete s.line;
+      if (Object.values(s.rssi).every((v) => v == null)) warn(0, "rssi_dbm", `La muestra "${s.id}" no tiene ninguna lectura v\xE1lida.`);
+    }
+    const count = (role) => list.filter((s) => s.role === role).length;
+    return {
+      ok: true,
+      errors,
+      warnings,
+      samples: list,
+      meta: {
+        delimiter,
+        rows: nRows,
+        missingReadings: nMissing,
+        experiments: [...new Set(list.map((s) => s.experimentId))],
+        apIds: [...new Set(list.flatMap((s) => Object.keys(s.rssi)))].sort(),
+        sources: [...new Set(list.map((s) => s.source))],
+        counts: { calibration: count("calibration"), evaluation: count("evaluation"), unlabeled: count("unlabeled") }
+      }
+    };
+  }
+  function q(v) {
+    const s = String(v ?? "");
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+  function exportCsv(samples) {
+    const lines = [CSV_COLUMNS.join(",")];
+    for (const s of samples) {
+      for (const ap of Object.keys(s.rssi).sort()) {
+        const v = s.rssi[ap];
+        lines.push([
+          q(s.experimentId),
+          q(s.id),
+          q(ap),
+          v == null ? "" : v.toFixed(2),
+          s.x == null ? "" : s.x.toFixed(3),
+          s.y == null ? "" : s.y.toFixed(3),
+          s.role,
+          q(s.timestamp || ""),
+          s.source === "undeclared" ? "" : s.source || ""
+        ].join(","));
+      }
+    }
+    return lines.join("\n") + "\n";
+  }
+
+  // src/engine/experiment.js
+  var clone = (o) => JSON.parse(JSON.stringify(o));
+  function locate(rssi, ctx) {
+    return {
+      a: trilaterate(ctx.aps, rssi, ctx.assumed, ctx.tri),
+      b: knnEstimate(ctx.db, rssi, ctx.knn)
+    };
+  }
+  function buildCalibration(cfg) {
+    const positions = gridPositions(cfg.env.room, cfg.cal.spacing);
+    const samples = generateSamples(cfg.env, positions, { seed: cfg.seed, role: "calibration", reads: cfg.cal.reads });
+    return { samples, db: buildFingerprintDb(samples) };
+  }
+  function attachError(est, truth) {
+    const out = { ok: est.ok, status: est.status, x: est.x, y: est.y, err: null };
+    if (est.ok && truth) out.err = Math.hypot(est.x - truth.x, est.y - truth.y);
+    return out;
+  }
+  function summarizeMethod(rows, key) {
+    const errs = [], fails = {};
+    let nFailed = 0;
+    for (const r of rows) {
+      if (r[key].ok) errs.push(r[key].err);
+      else {
+        nFailed++;
+        fails[r[key].status] = (fails[r[key].status] || 0) + 1;
+      }
+    }
+    return { ...summarize(errs, nFailed), failReasons: fails };
+  }
+  function evaluateConfig(cfg) {
+    const aps = cfg.env.aps.filter((a) => a.enabled !== false);
+    const cal = buildCalibration(cfg);
+    const positions = randomPositions(cfg.env.room, cfg.eval.n, cfg.seed);
+    const evalSamples = generateSamples(cfg.env, positions, { seed: cfg.seed, role: "evaluation", reads: cfg.eval.reads });
+    const leaked = evalSamples.filter((s) => cal.db.sampleIds.has(s.id)).length;
+    if (leaked) throw new Error(`Fuga de datos: ${leaked} muestras de evaluaci\xF3n est\xE1n en la base de huellas.`);
+    const ctx = { aps, assumed: cfg.assumed, db: cal.db, tri: cfg.tri, knn: cfg.knn };
+    const rows = evalSamples.map((s) => {
+      const est = locate(s.rssi, ctx);
+      return { id: s.id, x: s.x, y: s.y, a: attachError(est.a, s), b: attachError(est.b, s) };
+    });
+    const both = rows.filter((r) => r.a.ok && r.b.ok);
+    return {
+      nAps: aps.length,
+      cal: { nPoints: cal.db.points.length, nSamples: cal.samples.length },
+      rows,
+      summary: { a: summarizeMethod(rows, "a"), b: summarizeMethod(rows, "b") },
+      paired: {
+        n: both.length,
+        meanDiffAminusB: both.length ? mean(both.map((r) => r.a.err - r.b.err)) : null,
+        aBetter: both.filter((r) => r.a.err < r.b.err).length,
+        bBetter: both.filter((r) => r.b.err < r.a.err).length
+      }
+    };
+  }
+  var VARIABLES = {
+    none: { label: "Ninguna (una sola condici\xF3n)", unit: "", apply: () => {
+    } },
+    apCount: {
+      label: "Cantidad de AP (los primeros N de la lista)",
+      unit: "AP",
+      apply: (c, v) => {
+        const on = c.env.aps.filter((a) => a.enabled !== false);
+        c.env.aps = on.slice(0, v);
+      }
+    },
+    sigma: { label: "Ruido RSSI \u03C3", unit: "dB", apply: (c, v) => {
+      c.env.model.sigma = v;
+    } },
+    wallAtt: { label: "Atenuaci\xF3n de todas las paredes", unit: "dB", apply: (c, v) => {
+      for (const w of c.env.walls) w.att = v;
+    } },
+    nAssumed: { label: "Exponente n supuesto por el estimador", unit: "", apply: (c, v) => {
+      c.assumed.n = v;
+    } },
+    p0Assumed: { label: "P\u2080 supuesto por el estimador", unit: "dBm", apply: (c, v) => {
+      c.assumed.p0 = v;
+    } },
+    k: { label: "k de k-NN", unit: "", apply: (c, v) => {
+      c.knn.k = v;
+    } },
+    gridSpacing: { label: "Paso de la grilla de calibraci\xF3n", unit: "m", apply: (c, v) => {
+      c.cal.spacing = v;
+    } },
+    reads: { label: "Lecturas promediadas por posici\xF3n", unit: "", apply: (c, v) => {
+      c.eval.reads = v;
+    } }
+  };
+  function round(v) {
+    return v == null ? null : Math.round(v * 1e9) / 1e9;
+  }
+  function resultDigest(conditions) {
+    const parts = [];
+    for (const c of conditions) {
+      parts.push(c.value);
+      for (const r of c.result.rows) parts.push(round(r.a.err), round(r.b.err), r.a.status, r.b.status);
+    }
+    return hashSeed(...parts).toString(16).padStart(8, "0");
+  }
+  function runSweep({ base, variable, values }) {
+    const v = VARIABLES[variable];
+    if (!v) throw new Error(`Variable desconocida: ${variable}`);
+    const vals = variable === "none" ? [null] : values;
+    const conditions = vals.map((value) => {
+      const cfg = clone(base);
+      v.apply(cfg, value);
+      return { value, label: value == null ? "\xFAnica" : `${value}${v.unit ? " " + v.unit : ""}`, result: evaluateConfig(cfg) };
+    });
+    return { variable, seed: base.seed, conditions, digest: resultDigest(conditions) };
+  }
+  function errorHeatmap(cfg, { cell = 0.5, trials = 6 } = {}) {
+    const aps = cfg.env.aps.filter((a2) => a2.enabled !== false);
+    const { db } = buildCalibration(cfg);
+    const cols = Math.max(1, Math.round(cfg.env.room.w / cell)), rows = Math.max(1, Math.round(cfg.env.room.h / cell));
+    const cw = cfg.env.room.w / cols, ch = cfg.env.room.h / rows;
+    const ctx = { aps, assumed: cfg.assumed, db, tri: cfg.tri, knn: cfg.knn };
+    const a = [], b = [];
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const pos = { x: (i + 0.5) * cw, y: (j + 0.5) * ch };
+      const means = aps.map((ap) => meanRssi(ap, pos, cfg.env).rssi);
+      const ea = [], eb = [];
+      for (let t = 0; t < trials; t++) {
+        const rssi = {};
+        aps.forEach((ap, q2) => {
+          const rng = makeRng(cfg.seed, "heat", j, i, t, ap.id);
+          rssi[ap.id] = noisyReading(means[q2], cfg.env.model, rng.gaussian());
+        });
+        const est = locate(rssi, ctx);
+        if (est.a.ok) ea.push(Math.hypot(est.a.x - pos.x, est.a.y - pos.y));
+        if (est.b.ok) eb.push(Math.hypot(est.b.x - pos.x, est.b.y - pos.y));
+      }
+      a.push(mean(ea));
+      b.push(mean(eb));
+    }
+    return { cols, rows, cw, ch, a, b, trials };
+  }
+  function analyzeDataset(samples, ctx) {
+    const cal = samples.filter((s) => s.role === "calibration");
+    const ev = samples.filter((s) => s.role === "evaluation");
+    const un = samples.filter((s) => s.role === "unlabeled");
+    const db = cal.length ? buildFingerprintDb(cal) : null;
+    const dataAps = [...new Set(samples.flatMap((s) => Object.keys(s.rssi)))].sort();
+    const matched = ctx.aps.filter((a) => dataAps.includes(a.id));
+    const run2 = (s, truth) => {
+      const est = locate(s.rssi, { ...ctx, aps: matched, db });
+      return { id: s.id, x: s.x, y: s.y, a: attachError(est.a, truth), b: attachError(est.b, truth), reasonA: est.a.reason, reasonB: est.b.reason };
+    };
+    const evalRows = ev.map((s) => run2(s, s));
+    const unlabeledRows = un.map((s) => run2(s, null));
+    return {
+      counts: { calibration: cal.length, evaluation: ev.length, unlabeled: un.length },
+      calPoints: db ? db.points.length : 0,
+      dataAps,
+      matchedAps: matched.map((a) => a.id),
+      unmatchedAps: dataAps.filter((id) => !matched.some((a) => a.id === id)),
+      evalRows,
+      unlabeledRows,
+      summary: ev.length ? { a: summarizeMethod(evalRows, "a"), b: summarizeMethod(evalRows, "b") } : null
+    };
+  }
+
+  // src/engine/scenario.js
+  var STANDARD_APS = [
+    { id: "AP1", x: 1, y: 1 },
+    { id: "AP2", x: 11, y: 1.5 },
+    { id: "AP3", x: 6, y: 7 },
+    { id: "AP4", x: 1, y: 7 },
+    { id: "AP5", x: 11, y: 7 },
+    { id: "AP6", x: 6, y: 0.8 }
+  ].map((a) => ({ ...a, offset: 0, enabled: true }));
+  var STANDARD_WALLS = [
+    { id: "W1", x1: 4, y1: 0, x2: 4, y2: 5, att: 6 },
+    { id: "W2", x1: 7.5, y1: 4, x2: 12, y2: 4, att: 6 }
+  ];
+  function baseConfig(overrides = {}) {
+    return {
+      env: { room: { w: 12, h: 8 }, aps: clone(STANDARD_APS), walls: [], model: { ...DEFAULT_MODEL } },
+      assumed: { p0: DEFAULT_MODEL.p0, n: DEFAULT_MODEL.n, d0: DEFAULT_MODEL.d0 },
+      tri: { weighted: true },
+      knn: { k: 3, weighted: true },
+      cal: { spacing: 1, reads: 5 },
+      eval: { n: 200, reads: 1 },
+      seed: 20261110,
+      ...overrides
+    };
+  }
+  function liveScene() {
+    const c = baseConfig();
+    c.env.aps = clone(STANDARD_APS).slice(0, 4);
+    c.env.walls = [clone(STANDARD_WALLS[0])];
+    return c;
+  }
+  var PRESETS = [
+    {
+      id: "exp1",
+      title: "1 \xB7 Tres AP frente a seis",
+      hypothesis: "Con m\xE1s puntos de acceso bien distribuidos el error medio de ambos m\xE9todos disminuye, porque cada estimaci\xF3n promedia m\xE1s mediciones independientes.",
+      variable: "apCount",
+      values: [3, 4, 6],
+      controlled: "Recinto, modelo (P\u2080, n, \u03C3 = 3 dB), sin paredes, calibraci\xF3n correcta, mismas posiciones de evaluaci\xF3n y mismos sorteos de ruido para los AP compartidos.",
+      build: () => baseConfig()
+    },
+    {
+      id: "exp2",
+      title: "2 \xB7 Ruido RSSI creciente",
+      hypothesis: "El error espacial crece con \u03C3. Con \u03C3 = 0 el m\xE9todo geom\xE9trico es exacto; el fingerprinting conserva un error residual por la discretizaci\xF3n de la grilla.",
+      variable: "sigma",
+      values: [0, 1, 2, 3, 4, 6, 8],
+      controlled: "6 AP, sin paredes, calibraci\xF3n correcta. La base de huellas se mide en el mismo entorno, por lo que su ruido tambi\xE9n cambia con \u03C3 (es parte del efecto estudiado).",
+      build: () => baseConfig()
+    },
+    {
+      id: "exp3",
+      title: "3 \xB7 Paredes entre transmisor y receptor",
+      hypothesis: "El m\xE9todo geom\xE9trico ignora las paredes: cada pared atravesada se interpreta como distancia extra y sesga la posici\xF3n. El fingerprinting, calibrado en el mismo entorno, absorbe ese efecto.",
+      variable: "wallAtt",
+      values: [0, 3, 6, 10],
+      controlled: "6 AP, dos paredes fijas (misma geometr\xEDa en todas las condiciones), \u03C3 = 3 dB, modelo supuesto sin cambios.",
+      build: () => {
+        const c = baseConfig();
+        c.env.walls = clone(STANDARD_WALLS);
+        return c;
+      }
+    },
+    {
+      id: "exp4",
+      title: "4 \xB7 Calibraci\xF3n correcta frente a desajustada",
+      hypothesis: "Si el estimador supone un exponente n distinto del real (2,5), las distancias inferidas quedan sistem\xE1ticamente cortas o largas y el error del m\xE9todo geom\xE9trico aumenta. k-NN no usa n, as\xED que no deber\xEDa cambiar.",
+      variable: "nAssumed",
+      values: [1.5, 2, 2.5, 3, 3.5],
+      controlled: "6 AP, sin paredes, \u03C3 = 3 dB. Solo cambia el n que usa el estimador; los datos generados son id\xE9nticos en todas las condiciones.",
+      build: () => baseConfig()
+    },
+    {
+      id: "exp5",
+      title: "5 \xB7 Geom\xE9trico frente a fingerprinting",
+      hypothesis: "En un recinto con paredes que el modelo geom\xE9trico desconoce, k-NN tendr\xE1 menor error medio que la multilateraci\xF3n, a costa de requerir una campa\xF1a de calibraci\xF3n.",
+      variable: "none",
+      values: [],
+      controlled: "Una \xFAnica escena (6 AP, dos paredes de 6 dB, \u03C3 = 3 dB). La variable es el algoritmo: ambos reciben exactamente las mismas mediciones.",
+      build: () => {
+        const c = baseConfig();
+        c.env.walls = clone(STANDARD_WALLS);
+        return c;
+      }
+    }
+  ];
+  function exampleDatasetCsv() {
+    const c = liveScene();
+    const seed = 7;
+    const cal = generateSamples(c.env, gridPositions(c.env.room, 2), { seed, role: "calibration", reads: 3, experimentId: "ejemplo-sintetico" });
+    const ev = generateSamples(c.env, randomPositions(c.env.room, 8, seed), { seed, role: "evaluation", experimentId: "ejemplo-sintetico" });
+    const un = generateSamples(c.env, randomPositions(c.env.room, 4, seed + 1), { seed, role: "unlabeled", prefix: "sn", experimentId: "ejemplo-sintetico" });
+    ev[2].rssi.AP2 = null;
+    return exportCsv([...cal, ...ev, ...un]);
+  }
+
+  // src/ui/state.js
+  var S = {
+    cfg: liveScene(),
+    linked: true,
+    // el estimador usa los mismos P0 y n que el modelo verdadero
+    rx: { x: 7.4, y: 3.2 },
+    tick: 0,
+    reads: 1,
+    autoCal: true,
+    db: null,
+    dbSig: null,
+    selected: null,
+    tool: "select",
+    view: null,
+    overlay: "none",
+    showCircles: true,
+    showCal: true,
+    heat: null,
+    heatSig: null,
+    tab: "lab",
+    live: null
+  };
+  var listeners = [];
+  var onUpdate = (fn) => listeners.push(fn);
+  var esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var f = (v, d = 2) => v == null || !Number.isFinite(v) ? "\u2014" : v.toFixed(d);
+  function effectiveCfg() {
+    const c = clone(S.cfg);
+    c.assumed.d0 = c.env.model.d0;
+    if (S.linked) {
+      c.assumed.p0 = c.env.model.p0;
+      c.assumed.n = c.env.model.n;
+    }
+    return c;
+  }
+  function calSignature(c) {
+    return JSON.stringify([c.env, c.cal, c.seed]);
+  }
+  function recalibrate() {
+    const c = effectiveCfg();
+    S.db = buildCalibration(c).db;
+    S.dbSig = calSignature(c);
+  }
+  function derive() {
+    const c = effectiveCfg();
+    const sig = calSignature(c);
+    if (!S.db || S.autoCal && sig !== S.dbSig) recalibrate();
+    const stale = sig !== S.dbSig;
+    const aps = c.env.aps.filter((a) => a.enabled !== false);
+    const sample = generateSamples(c.env, [S.rx], { seed: c.seed, role: "live", reads: S.reads, detail: true, tick: S.tick })[0];
+    const burst = generateSamples(c.env, [S.rx], { seed: c.seed, role: "burst", reads: 30, detail: true })[0];
+    const est = locate(sample.rssi, { aps, assumed: c.assumed, db: S.db, tri: c.tri, knn: c.knn });
+    const err = (e) => e.ok ? Math.hypot(e.x - S.rx.x, e.y - S.rx.y) : null;
+    const signals = c.env.aps.map((ap) => {
+      const on = ap.enabled !== false;
+      const d = on ? sample.detail[ap.id] : meanRssi(ap, S.rx, c.env);
+      const bvals = on ? burst.detail[ap.id].values.filter((v) => v != null) : [];
+      const inv = on ? invertRssi(sample.rssi[ap.id], c.assumed) : { d: null };
+      return {
+        id: ap.id,
+        enabled: on,
+        rssi: on ? sample.rssi[ap.id] : null,
+        mean: d.rssi,
+        dTrue: d.d,
+        clamped: d.clamped,
+        wallLoss: d.wallLoss,
+        crossed: d.crossed,
+        dInf: inv.d,
+        saturated: inv.saturated,
+        burstStd: bvals.length > 1 ? stdev(bvals) : null,
+        burstMin: bvals.length ? Math.min(...bvals) : null,
+        burstMax: bvals.length ? Math.max(...bvals) : null,
+        burstValid: bvals.length
+      };
+    });
+    S.live = { cfg: c, sample, signals, a: est.a, b: est.b, errA: err(est.a), errB: err(est.b), stale };
+    if (S.heat && S.heatSig !== heatSignature(c)) S.heat = null;
+  }
+  function heatSignature(c) {
+    return JSON.stringify([c.env, c.assumed, c.tri, c.knn, c.cal, c.seed]);
+  }
+  function computeHeat() {
+    const c = effectiveCfg();
+    const cell = Math.max(0.5, Math.max(c.env.room.w, c.env.room.h) / 30);
+    S.heat = errorHeatmap(c, { cell, trials: 6 });
+    S.heatSig = heatSignature(c);
+  }
+  function update() {
+    derive();
+    for (const fn of listeners) fn();
+  }
+  function nextId(prefix, items) {
+    let i = 1;
+    while (items.some((x) => x.id === `${prefix}${i}`)) i++;
+    return `${prefix}${i}`;
+  }
+  function clampToRoom(p) {
+    const r = S.cfg.env.room;
+    return { x: Math.min(r.w, Math.max(0, p.x)), y: Math.min(r.h, Math.max(0, p.y)) };
+  }
+  var snap = (v, q2 = 0.05) => Math.round(v / q2) * q2;
+  function fitView() {
+    const r = S.cfg.env.room;
+    const px = typeof document !== "undefined" && document.getElementById("plan")?.clientWidth || 640;
+    const u = r.w / Math.max(120, px - 52);
+    S.view = { x: -38 * u, y: -20 * u, w: r.w + 52 * u, h: r.h + 58 * u };
+    S.viewFit = true;
+  }
+  function enforceRoom() {
+    const r = S.cfg.env.room;
+    for (const a of S.cfg.env.aps) {
+      a.x = Math.min(r.w, a.x);
+      a.y = Math.min(r.h, a.y);
+    }
+    for (const w of S.cfg.env.walls) {
+      w.x1 = Math.min(r.w, w.x1);
+      w.x2 = Math.min(r.w, w.x2);
+      w.y1 = Math.min(r.h, w.y1);
+      w.y2 = Math.min(r.h, w.y2);
+    }
+    S.rx = clampToRoom(S.rx);
+    fitView();
+  }
+  function loadScene(cfg, extra = {}) {
+    S.cfg = cfg;
+    S.linked = true;
+    S.tick = 0;
+    S.reads = 1;
+    S.autoCal = true;
+    S.selected = null;
+    S.tool = "select";
+    S.db = null;
+    S.heat = null;
+    S.overlay = "none";
+    Object.assign(S, extra);
+    S.rx = clampToRoom(S.rx);
+    fitView();
+  }
+
+  // src/ui/plan.js
+  var svg;
+  var host;
+  var pointers = /* @__PURE__ */ new Map();
+  var drag = null;
+  var pinch = null;
+  var VIRIDIS = ["#440154", "#46327e", "#365c8d", "#277f8e", "#1fa187", "#4ac16d", "#a0da39", "#fde725"];
+  function ramp(t) {
+    const x = Math.min(1, Math.max(0, t)) * (VIRIDIS.length - 1);
+    const i = Math.min(VIRIDIS.length - 2, Math.floor(x)), k = x - i;
+    const h = (c, o) => parseInt(c.slice(o, o + 2), 16);
+    const mix = (o) => Math.round(h(VIRIDIS[i], o) + (h(VIRIDIS[i + 1], o) - h(VIRIDIS[i], o)) * k);
+    return `rgb(${mix(1)},${mix(3)},${mix(5)})`;
+  }
+  var Y = (y) => S.cfg.env.room.h - y;
+  function unit() {
+    const m = svg.getScreenCTM();
+    return m && m.a > 0 ? 1 / m.a : S.view.w / 640;
+  }
+  function toWorld(ev) {
+    const m = svg.getScreenCTM();
+    if (!m) return { x: 0, y: 0 };
+    const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse());
+    return { x: p.x, y: Y(p.y) };
+  }
+  function overlayLegend() {
+    const L = S.live;
+    if (S.overlay === "none") return "";
+    let lo, hi, label;
+    if (S.overlay === "rssi") {
+      ({ lo, hi } = rssiRange());
+      label = `RSSI medio de ${esc(overlayAp()?.id ?? "\u2014")} (dBm, sin ruido)`;
+    } else {
+      if (!S.heat) return '<span class="muted">Calculando\u2026</span>';
+      hi = heatMax();
+      lo = 0;
+      label = `Error medio del m\xE9todo ${S.overlay === "errA" ? "A" : "B"} (m), ${S.heat.trials} mediciones por celda`;
+    }
+    const stops = VIRIDIS.map((c, i) => `${c} ${i / (VIRIDIS.length - 1) * 100}%`).join(",");
+    return `<span class="legend-scale"><span>${f(lo, S.overlay === "rssi" ? 0 : 1)}</span><span class="ramp" style="background:linear-gradient(90deg,${stops})"></span><span>${f(hi, S.overlay === "rssi" ? 0 : 1)}</span></span><span class="muted">${label}</span>`;
+  }
+  function overlayAp() {
+    const aps = S.cfg.env.aps;
+    return S.selected?.type === "ap" && aps.find((a) => a.id === S.selected.id) || aps[0];
+  }
+  function rssiRange() {
+    const m = S.live.cfg.env.model;
+    return { lo: Math.max(m.floor, m.p0 - 60), hi: m.p0 };
+  }
+  function heatMax() {
+    const vals = [...S.heat.a, ...S.heat.b].filter((v) => v != null);
+    return Math.max(0.5, Math.ceil(percentile(vals, 98) * 2) / 2);
+  }
+  function heatLayer() {
+    const room = S.cfg.env.room;
+    let out = "";
+    if (S.overlay === "rssi") {
+      const ap = overlayAp();
+      if (!ap) return "";
+      const { lo, hi } = rssiRange();
+      const cols = Math.min(48, Math.round(room.w / 0.25)), rows = Math.min(48, Math.round(room.h / 0.25));
+      const cw = room.w / cols, ch = room.h / rows;
+      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+        const v = meanRssi(ap, { x: (i + 0.5) * cw, y: (j + 0.5) * ch }, S.live.cfg.env).rssi;
+        out += `<rect x="${(i * cw).toFixed(3)}" y="${Y((j + 1) * ch).toFixed(3)}" width="${(cw * 1.02).toFixed(3)}" height="${(ch * 1.02).toFixed(3)}" fill="${ramp((v - lo) / (hi - lo))}"/>`;
+      }
+    } else if (S.heat) {
+      const h = S.heat, arr = S.overlay === "errA" ? h.a : h.b, max = heatMax();
+      for (let j = 0; j < h.rows; j++) for (let i = 0; i < h.cols; i++) {
+        const v = arr[j * h.cols + i];
+        out += `<rect x="${(i * h.cw).toFixed(3)}" y="${Y((j + 1) * h.ch).toFixed(3)}" width="${(h.cw * 1.02).toFixed(3)}" height="${(h.ch * 1.02).toFixed(3)}" fill="${v == null ? "none" : ramp(v / max)}"><title>${v == null ? "sin estimaci\xF3n" : f(v) + " m"}</title></rect>`;
+      }
+    }
+    return `<g opacity="0.82">${out}</g>`;
+  }
+  function renderPlan() {
+    if (!svg) return;
+    const L = S.live, room = S.cfg.env.room, v = S.view, u = unit();
+    svg.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`);
+    svg.style.aspectRatio = `${v.w} / ${v.h}`;
+    svg.style.maxWidth = `calc(74vh * ${(v.w / v.h).toFixed(4)})`;
+    const fs = 11 * u, sw = u;
+    let g = `<rect x="0" y="0" width="${room.w}" height="${room.h}" fill="var(--plan)"/>`;
+    if (S.overlay !== "none") g += heatLayer();
+    const step = room.w > 30 || room.h > 30 ? 5 : 1;
+    const lab = Math.max(step, Math.ceil(60 * u / step) * step);
+    for (let x = 0; x <= room.w + 1e-9; x += step) g += `<line x1="${x}" y1="0" x2="${x}" y2="${room.h}" stroke="var(--grid)" stroke-width="${sw}"/>`;
+    for (let y = 0; y <= room.h + 1e-9; y += step) g += `<line x1="0" y1="${Y(y)}" x2="${room.w}" y2="${Y(y)}" stroke="var(--grid)" stroke-width="${sw}"/>`;
+    for (let x = 0; x <= room.w + 1e-9; x += lab) g += `<text x="${x}" y="${room.h + 14 * u}" font-size="${fs}" text-anchor="middle" fill="var(--muted)">${x}</text>`;
+    for (let y = 0; y <= room.h + 1e-9; y += lab) g += `<text x="${-6 * u}" y="${Y(y) + 4 * u}" font-size="${fs}" text-anchor="end" fill="var(--muted)">${y}</text>`;
+    g += `<text x="${room.w}" y="${room.h + 32 * u}" font-size="${fs}" text-anchor="end" fill="var(--muted)">x (m)</text>`;
+    g += `<text x="${-14 * u}" y="${-8 * u}" font-size="${fs}" text-anchor="middle" fill="var(--muted)">y (m)</text>`;
+    g += `<rect x="0" y="0" width="${room.w}" height="${room.h}" fill="none" stroke="var(--fg)" stroke-width="${2 * u}"/>`;
+    const bar = [0.5, 1, 2, 5, 10].find((b) => b / u >= 50) || 10;
+    g += `<g><line x1="0" y1="${room.h + 34 * u}" x2="${bar}" y2="${room.h + 34 * u}" stroke="var(--fg)" stroke-width="${2 * u}"/><text x="${bar + 5 * u}" y="${room.h + 38 * u}" font-size="${fs}" fill="var(--fg)">${bar} m</text></g>`;
+    if (S.showCal && S.db) {
+      const r = Math.max(1.6 * u, 0.02);
+      for (const p of S.db.points) g += `<circle cx="${p.x}" cy="${Y(p.y)}" r="${r}" fill="var(--muted)" opacity="0.55"/>`;
+    }
+    if (S.showCircles) {
+      for (const s of L.signals) {
+        if (!s.enabled || s.dInf == null) continue;
+        const ap = S.cfg.env.aps.find((a) => a.id === s.id);
+        g += `<circle cx="${ap.x}" cy="${Y(ap.y)}" r="${s.dInf}" fill="none" stroke="var(--ap)" stroke-width="${sw}" stroke-dasharray="${4 * u} ${4 * u}" opacity="0.55"/>`;
+      }
+    }
+    for (const w of S.cfg.env.walls) {
+      const sel = S.selected?.type === "wall" && S.selected.id === w.id;
+      g += `<line x1="${w.x1}" y1="${Y(w.y1)}" x2="${w.x2}" y2="${Y(w.y2)}" stroke="var(--wall)" stroke-width="${(sel ? 7 : 5) * u}" stroke-linecap="square"/>`;
+      const mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2;
+      g += `<text x="${mx + 7 * u}" y="${Y(my) - 6 * u}" font-size="${fs}" fill="var(--wall)" font-weight="600" paint-order="stroke" stroke="var(--plan)" stroke-width="${3 * u}">${f(w.att, 1)} dB</text>`;
+      if (sel) for (const [x, y] of [[w.x1, w.y1], [w.x2, w.y2]]) g += `<rect x="${x - 6 * u}" y="${Y(y) - 6 * u}" width="${12 * u}" height="${12 * u}" fill="var(--panel)" stroke="var(--wall)" stroke-width="${2 * u}"/>`;
+    }
+    if (drag?.kind === "newwall") g += `<line x1="${drag.a.x}" y1="${Y(drag.a.y)}" x2="${drag.b.x}" y2="${Y(drag.b.y)}" stroke="var(--wall)" stroke-width="${5 * u}" opacity="0.6"/>`;
+    if (L.b.ok) {
+      for (const nb of L.b.neighbors) {
+        g += `<line x1="${nb.x}" y1="${Y(nb.y)}" x2="${L.b.x}" y2="${Y(L.b.y)}" stroke="var(--mb)" stroke-width="${sw}" opacity="0.6"/>`;
+        g += `<circle cx="${nb.x}" cy="${Y(nb.y)}" r="${5 * u}" fill="none" stroke="var(--mb)" stroke-width="${1.6 * u}"/>`;
+      }
+    }
+    const errLine = (e, err, color) => e.ok ? `<line x1="${S.rx.x}" y1="${Y(S.rx.y)}" x2="${e.x}" y2="${Y(e.y)}" stroke="${color}" stroke-width="${1.6 * u}" stroke-dasharray="${5 * u} ${3 * u}"/>` : "";
+    g += errLine(L.a, L.errA, "var(--ma)") + errLine(L.b, L.errB, "var(--mb)");
+    for (const ap of S.cfg.env.aps) {
+      const sel = S.selected?.type === "ap" && S.selected.id === ap.id;
+      const r = 9 * u, cx = ap.x, cy = Y(ap.y);
+      const on = ap.enabled !== false;
+      if (sel) g += `<circle cx="${cx}" cy="${cy}" r="${16 * u}" fill="none" stroke="var(--ap)" stroke-width="${1.5 * u}"/>`;
+      g += `<polygon points="${cx},${cy - r} ${cx + r * 0.9},${cy + r * 0.7} ${cx - r * 0.9},${cy + r * 0.7}" fill="${on ? "var(--ap)" : "var(--plan)"}" stroke="var(--ap)" stroke-width="${1.6 * u}"/>`;
+      g += `<text x="${cx}" y="${cy + 21 * u}" font-size="${fs}" text-anchor="middle" fill="var(--ap)" font-weight="600" paint-order="stroke" stroke="var(--plan)" stroke-width="${3 * u}">${esc(ap.id)}</text>`;
+    }
+    const tag = (x, y, t, color) => `<text x="${x > v.x + v.w - 95 * u ? x - 10 * u : x + 10 * u}" text-anchor="${x > v.x + v.w - 95 * u ? "end" : "start"}" y="${Y(y) - 8 * u}" font-size="${fs}" fill="${color}" font-weight="600" paint-order="stroke" stroke="var(--plan)" stroke-width="${3 * u}">${t}</text>`;
+    if (L.a.ok) {
+      const r = 6.5 * u;
+      g += `<rect x="${L.a.x - r}" y="${Y(L.a.y) - r}" width="${2 * r}" height="${2 * r}" fill="var(--plan)" fill-opacity="0.6" stroke="var(--ma)" stroke-width="${2.2 * u}"/>` + tag(L.a.x, L.a.y, `A \xB7 ${f(L.errA)} m`, "var(--ma)");
+    }
+    if (L.b.ok) {
+      const r = 8 * u, x = L.b.x, y = Y(L.b.y);
+      g += `<polygon points="${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}" fill="var(--plan)" fill-opacity="0.6" stroke="var(--mb)" stroke-width="${2.2 * u}"/>` + tag(L.b.x, L.b.y + (L.a.ok && Math.abs(L.a.y - L.b.y) < 14 * u && Math.abs(L.a.x - L.b.x) < 60 * u ? -18 * u : 0), `B \xB7 ${f(L.errB)} m`, "var(--mb)");
+    }
+    {
+      const x = S.rx.x, y = Y(S.rx.y), r = 8 * u;
+      g += `<circle cx="${x}" cy="${y}" r="${r}" fill="var(--fg)" stroke="var(--plan)" stroke-width="${1.5 * u}"/><line x1="${x - 14 * u}" y1="${y}" x2="${x + 14 * u}" y2="${y}" stroke="var(--fg)" stroke-width="${1.4 * u}"/><line x1="${x}" y1="${y - 14 * u}" x2="${x}" y2="${y + 14 * u}" stroke="var(--fg)" stroke-width="${1.4 * u}"/><circle cx="${x}" cy="${y}" r="${2.2 * u}" fill="var(--plan)"/>`;
+    }
+    svg.innerHTML = g;
+    host.querySelector("#planLegendScale").innerHTML = overlayLegend();
+  }
+  function hit(p, ev) {
+    const u = unit(), rad = (ev.pointerType === "touch" ? 24 : 14) * u;
+    if (Math.hypot(p.x - S.rx.x, p.y - S.rx.y) <= rad) return { kind: "rx" };
+    let best = null;
+    for (const ap of S.cfg.env.aps) {
+      const d = Math.hypot(p.x - ap.x, p.y - ap.y);
+      if (d <= rad && (!best || d < best.d)) best = { kind: "ap", id: ap.id, d };
+    }
+    if (best) return best;
+    if (S.selected?.type === "wall") {
+      const w = S.cfg.env.walls.find((x) => x.id === S.selected.id);
+      if (w) {
+        if (Math.hypot(p.x - w.x1, p.y - w.y1) <= rad) return { kind: "wallEnd", id: w.id, end: 1 };
+        if (Math.hypot(p.x - w.x2, p.y - w.y2) <= rad) return { kind: "wallEnd", id: w.id, end: 2 };
+      }
+    }
+    for (const w of S.cfg.env.walls) {
+      if (pointSegmentDistance(p, { x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 }) <= rad * 0.7) return { kind: "wall", id: w.id };
+    }
+    return null;
+  }
+  function zoomAt(world, factor) {
+    const v = S.view, room = S.cfg.env.room;
+    const baseW = room.w + 1.5;
+    S.viewFit = false;
+    const nw = Math.min(baseW * 1.6, Math.max(baseW / 12, v.w * factor));
+    const k = nw / v.w;
+    const sx = world.x, sy = Y(world.y);
+    S.view = { x: sx - (sx - v.x) * k, y: sy - (sy - v.y) * k, w: nw, h: v.h * k };
+  }
+  function zoomBy(factor) {
+    const v = S.view;
+    zoomAt({ x: v.x + v.w / 2, y: Y(v.y + v.h / 2) }, factor);
+    renderPlan();
+  }
+  function onDown(ev) {
+    if (ev.button > 0) return;
+    svg.setPointerCapture(ev.pointerId);
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      drag = null;
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), view: { ...S.view }, ctm: svg.getScreenCTM().inverse(), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+      return;
+    }
+    const p = toWorld(ev);
+    if (S.tool === "ap") {
+      const q2 = clampToRoom(p);
+      const ap = { id: nextId("AP", S.cfg.env.aps), x: snap(q2.x, 0.1), y: snap(q2.y, 0.1), offset: 0, enabled: true };
+      S.cfg.env.aps.push(ap);
+      S.selected = { type: "ap", id: ap.id };
+      S.tool = "select";
+      update();
+      return;
+    }
+    if (S.tool === "wall") {
+      const q2 = clampToRoom(p);
+      drag = { kind: "newwall", a: { x: snap(q2.x, 0.1), y: snap(q2.y, 0.1) }, b: { x: snap(q2.x, 0.1), y: snap(q2.y, 0.1) } };
+      return;
+    }
+    const h = hit(p, ev);
+    if (!h) {
+      drag = { kind: "pan", start: { x: ev.clientX, y: ev.clientY }, view: { ...S.view }, u: unit(), moved: false };
+      return;
+    }
+    if (h.kind === "rx") drag = { kind: "rx" };
+    else if (h.kind === "ap") {
+      S.selected = { type: "ap", id: h.id };
+      drag = { kind: "ap", id: h.id };
+    } else if (h.kind === "wallEnd") drag = { kind: "wallEnd", id: h.id, end: h.end };
+    else if (h.kind === "wall") {
+      const w = S.cfg.env.walls.find((x) => x.id === h.id);
+      S.selected = { type: "wall", id: h.id };
+      drag = { kind: "wall", id: h.id, p0: p, w0: { ...w } };
+    }
+    update();
+  }
+  function onMove(ev) {
+    if (!pointers.has(ev.pointerId)) return;
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (pinch && pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const room = S.cfg.env.room, baseW = room.w + 1.5;
+      const nw = Math.min(baseW * 1.6, Math.max(baseW / 12, pinch.view.w * (pinch.d / d)));
+      const k = nw / pinch.view.w;
+      const anchor = new DOMPoint(pinch.mid.x, pinch.mid.y).matrixTransform(pinch.ctm);
+      const rect = svg.getBoundingClientRect();
+      const mx = ((a.x + b.x) / 2 - rect.left) / rect.width, my = ((a.y + b.y) / 2 - rect.top) / rect.height;
+      S.viewFit = false;
+      S.view = { x: anchor.x - mx * nw, y: anchor.y - my * pinch.view.h * k, w: nw, h: pinch.view.h * k };
+      renderPlan();
+      return;
+    }
+    if (!drag) return;
+    const p = toWorld(ev);
+    if (drag.kind === "pan") {
+      const dx = (ev.clientX - drag.start.x) * drag.u, dy = (ev.clientY - drag.start.y) * drag.u;
+      if (Math.abs(dx) + Math.abs(dy) > 3 * drag.u) drag.moved = true;
+      if (drag.moved) S.viewFit = false;
+      S.view = { ...drag.view, x: drag.view.x - dx, y: drag.view.y - dy };
+      renderPlan();
+      return;
+    }
+    const q2 = clampToRoom(p);
+    if (drag.kind === "rx") S.rx = { x: snap(q2.x), y: snap(q2.y) };
+    else if (drag.kind === "ap") {
+      const ap = S.cfg.env.aps.find((a) => a.id === drag.id);
+      ap.x = snap(q2.x);
+      ap.y = snap(q2.y);
+    } else if (drag.kind === "wallEnd") {
+      const w = S.cfg.env.walls.find((x) => x.id === drag.id);
+      w[`x${drag.end}`] = snap(q2.x);
+      w[`y${drag.end}`] = snap(q2.y);
+    } else if (drag.kind === "wall") {
+      const w = S.cfg.env.walls.find((x) => x.id === drag.id), r = S.cfg.env.room, o = drag.w0;
+      let dx = p.x - drag.p0.x, dy = p.y - drag.p0.y;
+      dx = Math.min(r.w - Math.max(o.x1, o.x2), Math.max(-Math.min(o.x1, o.x2), dx));
+      dy = Math.min(r.h - Math.max(o.y1, o.y2), Math.max(-Math.min(o.y1, o.y2), dy));
+      w.x1 = snap(o.x1 + dx);
+      w.x2 = snap(o.x2 + dx);
+      w.y1 = snap(o.y1 + dy);
+      w.y2 = snap(o.y2 + dy);
+    } else if (drag.kind === "newwall") {
+      drag.b = { x: snap(q2.x, 0.1), y: snap(q2.y, 0.1) };
+      renderPlan();
+      return;
+    }
+    update();
+  }
+  function onUp(ev) {
+    pointers.delete(ev.pointerId);
+    if (pointers.size < 2) pinch = null;
+    const d = drag;
+    drag = null;
+    if (!d) return;
+    if (d.kind === "newwall") {
+      if (Math.hypot(d.a.x - d.b.x, d.a.y - d.b.y) >= 0.3) {
+        const w = { id: nextId("W", S.cfg.env.walls), x1: d.a.x, y1: d.a.y, x2: d.b.x, y2: d.b.y, att: 6 };
+        S.cfg.env.walls.push(w);
+        S.selected = { type: "wall", id: w.id };
+      }
+      S.tool = "select";
+      update();
+      return;
+    }
+    if (d.kind === "pan" && !d.moved && S.selected) {
+      S.selected = null;
+      update();
+      return;
+    }
+    if (S.overlay.startsWith("err") && !S.heat && d.kind !== "pan") {
+      computeHeat();
+      renderPlan();
+    }
+  }
+  function onKey(ev) {
+    const stepKey = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[ev.key];
+    if (stepKey) {
+      ev.preventDefault();
+      const s = ev.shiftKey ? 0.5 : 0.1;
+      const target = S.selected?.type === "ap" ? S.cfg.env.aps.find((a) => a.id === S.selected.id) : S.rx;
+      const q2 = clampToRoom({ x: target.x + stepKey[0] * s, y: target.y + stepKey[1] * s });
+      target.x = snap(q2.x);
+      target.y = snap(q2.y);
+      update();
+      if (S.overlay.startsWith("err") && !S.heat) {
+        computeHeat();
+        renderPlan();
+      }
+    } else if ((ev.key === "Delete" || ev.key === "Backspace") && S.selected) {
+      deleteSelected();
+    }
+  }
+  function deleteSelected() {
+    if (!S.selected) return;
+    const key = S.selected.type === "ap" ? "aps" : "walls";
+    S.cfg.env[key] = S.cfg.env[key].filter((x) => x.id !== S.selected.id);
+    S.selected = null;
+    update();
+  }
+  function initPlan(container) {
+    host = container;
+    svg = container.querySelector("#plan");
+    if (!S.view) fitView();
+    svg.addEventListener("pointerdown", onDown);
+    svg.addEventListener("pointermove", onMove);
+    svg.addEventListener("pointerup", onUp);
+    svg.addEventListener("pointercancel", onUp);
+    svg.addEventListener("wheel", (ev) => {
+      ev.preventDefault();
+      zoomAt(toWorld(ev), ev.deltaY > 0 ? 1.15 : 1 / 1.15);
+      renderPlan();
+    }, { passive: false });
+    svg.addEventListener("keydown", onKey);
+    let lastW = 0;
+    new ResizeObserver(() => {
+      if (S.viewFit && svg.clientWidth !== lastW) {
+        lastW = svg.clientWidth;
+        fitView();
+      }
+      renderPlan();
+    }).observe(svg);
+  }
+
+  // src/ui/panels.js
+  var chip = (ok, text) => `<span class="chip ${ok ? "ok" : "bad"}">${text}</span>`;
+  function renderPositioning(el) {
+    const L = S.live;
+    const row = (name, cls, e, err) => `<tr>
+    <th scope="row"><span class="sym ${cls}"></span>${name}</th>
+    <td class="num">${e.ok ? `(${f(e.x)}, ${f(e.y)})` : "\u2014"}</td>
+    <td class="num strong">${e.ok ? f(err) + " m" : "\u2014"}</td>
+    <td>${e.ok ? chip(true, "disponible") : chip(false, "sin estimaci\xF3n")}</td></tr>
+    ${e.ok ? "" : `<tr class="reason"><td colspan="4">${esc(e.reason)}</td></tr>`}`;
+    const outside = (e) => e.ok && (e.x < 0 || e.y < 0 || e.x > S.cfg.env.room.w || e.y > S.cfg.env.room.h);
+    el.innerHTML = `
+  <table class="readout">
+    <thead><tr><th></th><th class="num">x, y (m)</th><th class="num">error espacial</th><th>estado</th></tr></thead>
+    <tbody>
+      <tr><th scope="row"><span class="sym s-rx"></span>Posici\xF3n real</th><td class="num">(${f(S.rx.x)}, ${f(S.rx.y)})</td><td class="num muted">referencia</td><td></td></tr>
+      ${row("A \xB7 multilateraci\xF3n", "s-a", L.a, L.errA)}
+      ${row(`B \xB7 k-NN (k = ${L.cfg.knn.k})`, "s-b", L.b, L.errB)}
+    </tbody>
+  </table>
+  ${outside(L.a) ? '<p class="note warn">La estimaci\xF3n A cae fuera del recinto. Se muestra tal cual: el algoritmo no la recorta.</p>' : ""}
+  ${L.stale ? '<p class="note warn">El mapa de huellas est\xE1 desactualizado: la escena cambi\xF3 despu\xE9s de calibrar. El m\xE9todo B usa huellas que ya no describen este entorno. <button class="btn small" data-act="recal">Recalibrar</button></p>' : ""}
+  ${L.b.ok && L.b.kReduced ? `<p class="note warn">k = ${L.b.k} supera los ${L.b.kUsed} puntos de calibraci\xF3n: se usan todos.</p>` : ""}`;
+    el.querySelector('[data-act="recal"]')?.addEventListener("click", () => {
+      recalibrate();
+      update();
+    });
+  }
+  function renderSignals(el) {
+    const L = S.live;
+    const rows = L.signals.map((s) => `<tr class="${s.enabled ? "" : "off"}">
+    <th scope="row"><button class="link" data-ap="${esc(s.id)}">${esc(s.id)}</button></th>
+    <td class="num strong">${!s.enabled ? "apagado" : s.rssi == null ? '<span class="chip bad">sin se\xF1al</span>' : f(s.rssi, 1)}</td>
+    <td class="num">${f(s.dTrue)}${s.clamped ? '<sup title="Menor que d\u2080: el modelo se satura">*</sup>' : ""}</td>
+    <td class="num">${s.dInf == null ? "\u2014" : (s.saturated ? "\u2264 " : "") + f(s.dInf)}</td>
+    <td class="num">${s.wallLoss ? f(s.wallLoss, 1) + ` <span class="muted">(${s.crossed.length})</span>` : "0"}</td>
+    <td class="num">${s.burstStd == null ? "\u2014" : f(s.burstStd, 2)}</td>
+    <td class="num muted">${s.burstMin == null ? "\u2014" : f(s.burstMin, 0) + " \u2026 " + f(s.burstMax, 0)}</td></tr>`).join("");
+    el.innerHTML = `<div class="scroll-x"><table class="data">
+    <thead><tr><th>AP</th><th class="num">RSSI<br><small>dBm</small></th><th class="num">d real<br><small>m</small></th><th class="num">d inferida<br><small>m</small></th><th class="num">paredes<br><small>dB (n.\xBA)</small></th><th class="num">desv\xEDo medido<br><small>dB, 30 lect.</small></th><th class="num">rango<br><small>dBm</small></th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="7" class="muted">No hay puntos de acceso. Agreg\xE1 uno con \xAB+ AP\xBB.</td></tr>'}</tbody></table></div>
+  <p class="fine">RSSI: ${S.reads === 1 ? "una lectura" : `promedio de ${S.reads} lecturas`} (medici\xF3n n.\xBA ${S.tick + 1}). \xABd inferida\xBB invierte el modelo supuesto y no conoce las paredes. \xABdesv\xEDo medido\xBB y \xABrango\xBB salen de una r\xE1faga aparte de 30 lecturas en esta misma posici\xF3n.</p>`;
+    el.querySelectorAll("[data-ap]").forEach((b) => b.addEventListener("click", () => {
+      S.selected = { type: "ap", id: b.dataset.ap };
+      update();
+    }));
+  }
+  function renderIntermediates(el) {
+    const L = S.live, a = L.a, b = L.b;
+    const openA = el.querySelector("#detA")?.open, openB = el.querySelector("#detB")?.open;
+    const aRows = a.distances.map((d) => `<tr><th scope="row">${esc(d.apId)}</th><td class="num">${f(d.rssi, 1)}</td><td class="num">${d.d == null ? "\u2014" : (d.saturated ? "\u2264 " : "") + f(d.d, 3)}</td><td class="num">${f(d.fitDistance, 3)}</td><td class="num">${f(d.residual, 3)}</td></tr>`).join("");
+    const apIds = S.db ? S.db.apIds : [];
+    const vec = (r) => apIds.map((id) => r[id] == null ? "\u2205" : f(r[id], 1)).join(" \xB7 ");
+    const bRows = b.neighbors.map((n, i) => `<tr><th scope="row">${i + 1}</th><td class="num">(${f(n.x)}, ${f(n.y)})</td><td class="num">${f(n.dist, 2)}</td><td class="num">${f(n.weight, 3)}</td><td class="num mono-s">${vec(n.rssi)}</td></tr>`).join("");
+    el.innerHTML = `
+  <details id="detA" ${openA ? "open" : ""}><summary>M\xE9todo A \xB7 valores intermedios</summary>
+    <p class="fine">Modelo supuesto: P\u2080 = ${f(L.cfg.assumed.p0, 1)} dBm, n = ${f(L.cfg.assumed.n, 2)}, d\u2080 = ${f(L.cfg.assumed.d0, 2)} m \xB7 pesos ${L.cfg.tri.weighted ? "1/d\u0302\xB2" : "uniformes"}</p>
+    <div class="scroll-x"><table class="data"><thead><tr><th>AP</th><th class="num">RSSI<br><small>dBm</small></th><th class="num">d\u0302 inferida<br><small>m</small></th><th class="num">\u2016p\u0302 \u2212 AP\u2016<br><small>m</small></th><th class="num">residuo<br><small>m</small></th></tr></thead><tbody>${aRows}</tbody></table></div>
+    ${a.ok ? `<dl class="kv"><dt>AP usados</dt><dd>${a.nUsed}</dd><dt>Dispersi\xF3n de los AP</dt><dd>${f(a.spread, 3)} <span class="muted">(0 = colineales)</span></dd><dt>Punto de partida elegido</dt><dd>${a.start} (${f(a.startPoint.x)}, ${f(a.startPoint.y)})</dd><dt>Iteraciones L\u2013M</dt><dd>${a.iterations}</dd><dt>Costo J(p\u0302)</dt><dd>${a.cost.toExponential(3)}</dd><dt>Residuo RMS de distancia</dt><dd>${f(a.residualRms, 3)} m</dd></dl>` : `<p class="note bad">${esc(a.reason)}</p>`}
+  </details>
+  <details id="detB" ${openB ? "open" : ""}><summary>M\xE9todo B \xB7 vectores y vecinos</summary>
+    <p class="fine">Mapa de huellas: ${S.db.points.length} puntos de calibraci\xF3n \xB7 AP en el mapa: ${apIds.map(esc).join(", ") || "\u2014"} \xB7 orden de los vectores: ${apIds.map(esc).join(" \xB7 ")} \xB7 \u2205 = sin se\xF1al (cuenta como ${S.db.missingValue} dBm)</p>
+    <dl class="kv"><dt>Vector medido</dt><dd class="mono-s">${vec(L.sample.rssi)}</dd>${b.ok && b.ignoredAps.length ? `<dt>AP ignorados (no est\xE1n en el mapa)</dt><dd>${b.ignoredAps.map(esc).join(", ")}</dd>` : ""}${b.ok && b.missingInQuery.length ? `<dt>Faltan en la medici\xF3n</dt><dd>${b.missingInQuery.map(esc).join(", ")}</dd>` : ""}</dl>
+    ${b.ok ? `<div class="scroll-x"><table class="data"><thead><tr><th>#</th><th class="num">posici\xF3n<br><small>m</small></th><th class="num">D<br><small>dB</small></th><th class="num">peso</th><th class="num">huella<br><small>dBm</small></th></tr></thead><tbody>${bRows}</tbody></table></div>` : `<p class="note bad">${esc(b.reason)}</p>`}
+  </details>`;
+  }
+  function renderInspector(el) {
+    const sel = S.selected;
+    if (!sel) {
+      el.innerHTML = '<p class="fine">Toc\xE1 un AP o una pared para ver y editar sus par\xE1metros. Arrastr\xE1 el receptor (c\xEDrculo con ret\xEDcula) para moverlo. Con el plano enfocado, las flechas mueven el receptor o el AP seleccionado.</p>';
+      return;
+    }
+    const num2 = (label, key, val, step, unit2, min, max) => `<label class="field"><span>${label}</span><span class="inp"><input type="number" id="insp-${key}" data-k="${key}" value="${val}" step="${step}" ${min != null ? `min="${min}"` : ""} ${max != null ? `max="${max}"` : ""}><em>${unit2}</em></span></label>`;
+    const room = S.cfg.env.room;
+    if (sel.type === "ap") {
+      const ap = S.cfg.env.aps.find((a) => a.id === sel.id);
+      if (!ap) {
+        S.selected = null;
+        el.innerHTML = "";
+        return;
+      }
+      const sig = S.live.signals.find((s) => s.id === ap.id);
+      el.innerHTML = `<div class="insp-head"><strong><span class="sym s-ap"></span>${esc(ap.id)}</strong><span class="muted">RSSI medio en el receptor: ${f(sig?.mean, 1)} dBm \xB7 distancia ${f(sig?.dTrue)} m</span></div>
+      <div class="fields">${num2("x", "x", +ap.x.toFixed(2), 0.1, "m", 0, room.w)}${num2("y", "y", +ap.y.toFixed(2), 0.1, "m", 0, room.h)}${num2("\u0394P del AP", "offset", ap.offset || 0, 0.5, "dB", -30, 30)}
+      <label class="check"><input type="checkbox" id="insp-enabled" data-k="enabled" ${ap.enabled !== false ? "checked" : ""}> Encendido</label>
+      <button class="btn danger" data-act="del">Eliminar AP</button></div>
+      <p class="fine">\u0394P es una diferencia de potencia propia de este AP respecto de P\u2080. El estimador no la conoce: sirve para estudiar un transmisor mal calibrado.</p>`;
+      bind(el, ap);
+    } else {
+      const w = S.cfg.env.walls.find((x) => x.id === sel.id);
+      if (!w) {
+        S.selected = null;
+        el.innerHTML = "";
+        return;
+      }
+      el.innerHTML = `<div class="insp-head"><strong><span class="sym s-wall"></span>Pared ${esc(w.id)}</strong><span class="muted">longitud ${f(Math.hypot(w.x2 - w.x1, w.y2 - w.y1))} m</span></div>
+      <div class="fields">${num2("Atenuaci\xF3n", "att", w.att, 0.5, "dB", 0, 40)}${num2("x\u2081", "x1", +w.x1.toFixed(2), 0.1, "m", 0, room.w)}${num2("y\u2081", "y1", +w.y1.toFixed(2), 0.1, "m", 0, room.h)}${num2("x\u2082", "x2", +w.x2.toFixed(2), 0.1, "m", 0, room.w)}${num2("y\u2082", "y2", +w.y2.toFixed(2), 0.1, "m", 0, room.h)}
+      <button class="btn danger" data-act="del">Eliminar pared</button></div>`;
+      bind(el, w);
+    }
+  }
+  function bind(el, obj) {
+    el.querySelectorAll("input[data-k]").forEach((inp) => inp.addEventListener("change", () => {
+      if (inp.type === "checkbox") obj[inp.dataset.k] = inp.checked;
+      else {
+        let v = Number(inp.value);
+        if (!Number.isFinite(v)) return;
+        if (inp.min !== "") v = Math.max(Number(inp.min), v);
+        if (inp.max !== "") v = Math.min(Number(inp.max), v);
+        obj[inp.dataset.k] = v;
+      }
+      update();
+    }));
+    el.querySelector('[data-act="del"]').addEventListener("click", () => {
+      const key = S.selected.type === "ap" ? "aps" : "walls";
+      S.cfg.env[key] = S.cfg.env[key].filter((x) => x.id !== S.selected.id);
+      S.selected = null;
+      update();
+    });
+  }
+
+  // src/ui/charts.js
+  var M = { l: 44, r: 16, t: 26, b: 34 };
+  function niceMax(v) {
+    if (!(v > 0)) return 1;
+    const p = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of [1, 2, 2.5, 5, 10]) if (v <= m * p) return m * p;
+    return 10 * p;
+  }
+  function frame(width, height, yMax, yLabel, xLabel) {
+    const W = width - M.l - M.r, H = height - M.t - M.b;
+    let g = "";
+    for (let i = 0; i <= 4; i++) {
+      const y = M.t + H - i / 4 * H, val = yMax * i / 4;
+      g += `<line x1="${M.l}" y1="${y}" x2="${M.l + W}" y2="${y}" stroke="var(--grid)" stroke-width="1"/>`;
+      g += `<text x="${M.l - 6}" y="${y + 4}" font-size="11" text-anchor="end" fill="var(--muted)">${+val.toFixed(2)}</text>`;
+    }
+    g += `<line x1="${M.l}" y1="${M.t + H}" x2="${M.l + W}" y2="${M.t + H}" stroke="var(--fg)" stroke-width="1"/>`;
+    g += `<text x="${M.l + W}" y="${height - 4}" font-size="11" text-anchor="end" fill="var(--muted)">${xLabel}</text>`;
+    g += `<text x="4" y="12" font-size="11" fill="var(--muted)">${yLabel}</text>`;
+    return { g, W, H };
+  }
+  var svgWrap = (w, h, inner, label) => `<svg class="chart" role="img" aria-label="${label}" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${inner}</svg>`;
+  var sq = (x, y, r, c) => `<rect x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r}" fill="${c}"/>`;
+  var dia = (x, y, r, c) => `<polygon points="${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}" fill="${c}"/>`;
+  function sweepChart(conds, metric, metricLabel, xLabel, width) {
+    const height = 240;
+    const vals = conds.flatMap((c) => [c.result.summary.a[metric], c.result.summary.b[metric]]).filter((v) => v != null);
+    const yMax = niceMax(Math.max(...vals, 0.01));
+    const { g: g0, W, H } = frame(width, height, yMax, `${metricLabel} (m)`, xLabel);
+    let g = g0;
+    const xs = conds.map((c) => c.value);
+    const lo = Math.min(...xs), hi = Math.max(...xs);
+    const X2 = (v) => M.l + 14 + (v - lo) / (hi - lo || 1) * (W - 28);
+    const Yp = (v) => M.t + H - v / yMax * H;
+    for (const c of conds) g += `<text x="${X2(c.value)}" y="${M.t + H + 14}" font-size="11" text-anchor="middle" fill="var(--fg)">${c.value}</text>`;
+    for (const [k, color, mark] of [["a", "var(--ma)", sq], ["b", "var(--mb)", dia]]) {
+      const pts = conds.map((c) => [X2(c.value), c.result.summary[k][metric]]).filter((p) => p[1] != null);
+      g += `<polyline points="${pts.map((p) => `${p[0]},${Yp(p[1])}`).join(" ")}" fill="none" stroke="${color}" stroke-width="2"/>`;
+      for (const p of pts) g += `<g>${mark(p[0], Yp(p[1]), k === "a" ? 4.5 : 5.5, color)}<title>M\xE9todo ${k.toUpperCase()}: ${f(p[1], 3)} m</title></g>`;
+    }
+    return svgWrap(width, height, g, `${metricLabel} de cada m\xE9todo seg\xFAn ${xLabel}`);
+  }
+  function metricBars(summary, width) {
+    const height = 240;
+    const metrics = [["mean", "Media"], ["median", "Mediana"], ["rmse", "RMSE"], ["p90", "P90"]];
+    const yMax = niceMax(Math.max(...metrics.flatMap(([m]) => [summary.a[m] ?? 0, summary.b[m] ?? 0]), 0.01));
+    const { g: g0, W, H } = frame(width, height, yMax, "error (m)", "");
+    let g = g0;
+    const slot = W / metrics.length, bw = Math.min(34, slot / 3);
+    metrics.forEach(([m, label], i) => {
+      const cx = M.l + slot * (i + 0.5);
+      [["a", "var(--ma)", -bw - 1], ["b", "var(--mb)", 1]].forEach(([k, color, off]) => {
+        const v = summary[k][m];
+        if (v == null) return;
+        const h = v / yMax * H;
+        g += `<rect x="${cx + off}" y="${M.t + H - h}" width="${bw}" height="${h}" fill="${color}"><title>${label} ${k.toUpperCase()}: ${f(v, 3)} m</title></rect>`;
+        g += `<text x="${cx + off + bw / 2}" y="${M.t + H - h - 4}" font-size="10.5" text-anchor="middle" fill="var(--fg)">${f(v)}</text>`;
+      });
+      g += `<text x="${cx}" y="${M.t + H + 14}" font-size="11" text-anchor="middle" fill="var(--fg)">${label}</text>`;
+    });
+    return svgWrap(width, height, g, "M\xE9tricas de error de ambos m\xE9todos");
+  }
+  function perSampleChart(rows, width) {
+    const height = 220;
+    const errs = rows.flatMap((r) => [r.a.err, r.b.err]).filter((v) => v != null);
+    const yMax = niceMax(Math.max(...errs, 0.01));
+    const { g: g0, W, H } = frame(width, height, yMax, "error (m)", `muestra de evaluaci\xF3n 1 \u2026 ${rows.length}`);
+    let g = g0;
+    const X2 = (i) => M.l + 4 + i / Math.max(1, rows.length - 1) * (W - 8);
+    rows.forEach((r, i) => {
+      for (const [k, color, mark, rad] of [["a", "var(--ma)", sq, 2], ["b", "var(--mb)", dia, 2.8]]) {
+        if (r[k].ok) g += mark(X2(i), M.t + H - r[k].err / yMax * H, rad, color);
+        else g += `<line x1="${X2(i)}" y1="${M.t}" x2="${X2(i)}" y2="${M.t + 8}" stroke="${color}" stroke-width="2"/>`;
+      }
+    });
+    return svgWrap(width, height, g, "Error de posicionamiento por muestra");
+  }
+  function histChart(rows, width) {
+    const height = 220;
+    const ea = rows.filter((r) => r.a.ok).map((r) => r.a.err), eb = rows.filter((r) => r.b.ok).map((r) => r.b.err);
+    const xMax = niceMax(Math.max(...ea, ...eb, 0.01));
+    const nb = 20;
+    const bin = (xs) => {
+      const c = new Array(nb).fill(0);
+      for (const x of xs) c[Math.min(nb - 1, Math.floor(x / xMax * nb))]++;
+      return c;
+    };
+    const ha = bin(ea), hb = bin(eb);
+    const yMax = Math.max(4, Math.ceil(Math.max(...ha, ...hb) / 4) * 4);
+    const { g: g0, W, H } = frame(width, height, yMax, "muestras por intervalo", "error (m)");
+    let g = g0;
+    const bw = W / nb;
+    for (let i = 0; i < nb; i++) {
+      const x = M.l + i * bw;
+      if (ha[i]) g += `<rect x="${x + 1}" y="${M.t + H - ha[i] / yMax * H}" width="${bw / 2 - 1}" height="${ha[i] / yMax * H}" fill="var(--ma)"><title>A: ${ha[i]} muestras entre ${f(i * xMax / nb)} y ${f((i + 1) * xMax / nb)} m</title></rect>`;
+      if (hb[i]) g += `<rect x="${x + bw / 2}" y="${M.t + H - hb[i] / yMax * H}" width="${bw / 2 - 1}" height="${hb[i] / yMax * H}" fill="var(--mb)"><title>B: ${hb[i]} muestras entre ${f(i * xMax / nb)} y ${f((i + 1) * xMax / nb)} m</title></rect>`;
+    }
+    for (let i = 0; i <= 4; i++) g += `<text x="${M.l + i / 4 * W}" y="${M.t + H + 14}" font-size="11" text-anchor="middle" fill="var(--fg)">${+(xMax * i / 4).toFixed(2)}</text>`;
+    return svgWrap(width, height, g, "Distribuci\xF3n del error de posicionamiento");
+  }
+  var LEGEND = '<div class="legend"><span><i class="k-a"></i>M\xE9todo A \xB7 multilateraci\xF3n</span><span><i class="k-b"></i>M\xE9todo B \xB7 k-NN</span></div>';
+
+  // src/ui/util.js
+  var inFrame = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
+  async function copyText(text, textarea, statusEl) {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (statusEl) statusEl.textContent = "Copiado al portapapeles.";
+    } catch {
+      if (textarea) {
+        textarea.focus();
+        textarea.select();
+      }
+      if (statusEl) statusEl.textContent = "No se pudo copiar autom\xE1ticamente: el texto qued\xF3 seleccionado, copialo a mano.";
+    }
+  }
+  function downloadText(name, text, mime = "text/plain") {
+    const url = URL.createObjectURL(new Blob([text], { type: mime }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1e3);
+  }
+
+  // src/ui/experiments.js
+  var X = { preset: "exp1", hypothesis: "", variable: "apCount", values: "", n: 200, seed: 20261110, useLab: false, run: null, cond: 0, metric: "mean", runs: /* @__PURE__ */ new Map(), repeat: null, error: null, exportText: "" };
+  var root;
+  var METRICS = { mean: "Error medio", median: "Error mediano", rmse: "RMSE", p90: "Percentil 90" };
+  function preset() {
+    return PRESETS.find((p) => p.id === X.preset) || null;
+  }
+  function selectPreset(id) {
+    X.preset = id;
+    const p = preset();
+    if (p) {
+      X.hypothesis = p.hypothesis;
+      X.variable = p.variable;
+      X.values = p.values.join(", ");
+      X.useLab = false;
+    } else {
+      X.hypothesis = "";
+      X.useLab = true;
+      if (X.variable === "none") X.variable = "sigma";
+      if (!X.values) X.values = "0, 2, 4, 6";
+    }
+    X.run = null;
+    X.error = null;
+    X.repeat = null;
+    renderForm();
+    renderResults();
+  }
+  function parseValues() {
+    if (X.variable === "none") return { values: [] };
+    const parts = X.values.split(/[\s;,]+/).filter(Boolean).map((t) => Number(t.replace(",", ".")));
+    if (!parts.length) return { error: "Indic\xE1 al menos un valor para la variable." };
+    if (parts.some((v) => !Number.isFinite(v))) return { error: "Los valores deben ser n\xFAmeros separados por comas." };
+    if (parts.length > 12) return { error: "Como m\xE1ximo 12 condiciones por experimento." };
+    if (new Set(parts).size !== parts.length) return { error: "Hay valores repetidos." };
+    const base = baseCfg();
+    const nAps = base.env.aps.filter((a) => a.enabled !== false).length;
+    const int = (v) => Number.isInteger(v);
+    const rules = {
+      apCount: (v) => int(v) && v >= 1 && v <= nAps || `La cantidad de AP debe ser un entero entre 1 y ${nAps} (los AP encendidos de la escena).`,
+      sigma: (v) => v >= 0 && v <= 20 || "\u03C3 debe estar entre 0 y 20 dB.",
+      wallAtt: (v) => v >= 0 && v <= 40 || "La atenuaci\xF3n debe estar entre 0 y 40 dB.",
+      nAssumed: (v) => v >= 1 && v <= 6 || "n debe estar entre 1 y 6.",
+      p0Assumed: (v) => v >= -90 && v <= 0 || "P\u2080 debe estar entre \u221290 y 0 dBm.",
+      k: (v) => int(v) && v >= 1 && v <= 50 || "k debe ser un entero entre 1 y 50.",
+      gridSpacing: (v) => v >= 0.25 && v <= 10 || "El paso de grilla debe estar entre 0,25 y 10 m.",
+      reads: (v) => int(v) && v >= 1 && v <= 50 || "Las lecturas deben ser un entero entre 1 y 50."
+    };
+    for (const v of parts) {
+      const r = rules[X.variable](v);
+      if (r !== true) return { error: r };
+    }
+    if (X.variable === "wallAtt" && !base.env.walls.length) return { error: "La escena no tiene paredes: esta variable no tendr\xEDa ning\xFAn efecto. Dibuj\xE1 una pared o eleg\xED otra escena." };
+    return { values: parts.sort((a, b) => a - b) };
+  }
+  function baseCfg() {
+    const p = preset();
+    const c = X.useLab || !p ? effectiveCfg() : p.build();
+    c.eval.n = X.n;
+    c.seed = X.seed;
+    return c;
+  }
+  function describe(c) {
+    const m = c.env.model, on = c.env.aps.filter((a) => a.enabled !== false).length;
+    return `Recinto ${f(c.env.room.w, 1)} \xD7 ${f(c.env.room.h, 1)} m \xB7 ${on} AP \xB7 ${c.env.walls.length} paredes \xB7 P\u2080 ${f(m.p0, 1)} dBm, n ${f(m.n, 2)}, d\u2080 ${f(m.d0, 2)} m, \u03C3 ${f(m.sigma, 1)} dB, piso ${f(m.floor, 0)} dBm \xB7 estimador: P\u2080 ${f(c.assumed.p0, 1)}, n ${f(c.assumed.n, 2)} \xB7 k-NN: k ${c.knn.k}, grilla ${f(c.cal.spacing, 2)} m, ${c.cal.reads} lecturas por punto \xB7 evaluaci\xF3n: ${c.eval.n} posiciones, ${c.eval.reads} lectura(s) por posici\xF3n`;
+  }
+  function run() {
+    X.error = null;
+    X.repeat = null;
+    if (!(Number.isInteger(X.n) && X.n >= 10 && X.n <= 2e3)) {
+      X.error = "El n\xFAmero de posiciones debe ser un entero entre 10 y 2000.";
+      return renderResults();
+    }
+    if (!Number.isInteger(X.seed)) {
+      X.error = "La semilla debe ser un n\xFAmero entero.";
+      return renderResults();
+    }
+    const pv = parseValues();
+    if (pv.error) {
+      X.error = pv.error;
+      return renderResults();
+    }
+    const base = baseCfg();
+    const errs = validateModel(base.env.model);
+    if (errs.length) {
+      X.error = errs.join(" ");
+      return renderResults();
+    }
+    const key = JSON.stringify([base, X.variable, pv.values]);
+    const t0 = performance.now();
+    let result;
+    try {
+      result = runSweep({ base, variable: X.variable, values: pv.values });
+    } catch (e) {
+      X.error = `El experimento no pudo ejecutarse: ${e.message}`;
+      return renderResults();
+    }
+    const prev = X.runs.get(key);
+    if (prev) X.repeat = { same: prev === result.digest, prev };
+    X.runs.set(key, result.digest);
+    X.run = { ...result, base, ms: performance.now() - t0, hypothesis: X.hypothesis, description: describe(base) };
+    X.cond = Math.min(X.cond, result.conditions.length - 1);
+    X.exportText = "";
+    renderResults();
+  }
+  function renderForm() {
+    const p = preset();
+    const form = root.querySelector("#expForm");
+    const varOpts = Object.entries(VARIABLES).map(([k, v]) => `<option value="${k}" ${k === X.variable ? "selected" : ""}>${v.label}</option>`).join("");
+    form.innerHTML = `
+    <label class="field wide"><span>Experimento</span><select id="expPreset">${PRESETS.map((q2) => `<option value="${q2.id}" ${q2.id === X.preset ? "selected" : ""}>${q2.title}</option>`).join("")}<option value="custom" ${!p ? "selected" : ""}>Personalizado (escena actual del laboratorio)</option></select></label>
+    <label class="field wide"><span>1 \xB7 Hip\xF3tesis <small>(escribila antes de ejecutar)</small></span><textarea id="expHyp" rows="3" placeholder="\xBFQu\xE9 esper\xE1s que ocurra y por qu\xE9?">${esc(X.hypothesis)}</textarea></label>
+    <div class="fields">
+      <label class="field"><span>2 \xB7 Variable estudiada</span><select id="expVar" ${p ? "disabled" : ""}>${varOpts}</select></label>
+      <label class="field"><span>Valores</span><input type="text" id="expValues" value="${esc(X.values)}" ${X.variable === "none" ? "disabled" : ""} inputmode="decimal"></label>
+      <label class="field"><span>Posiciones de evaluaci\xF3n</span><input type="number" id="expN" value="${X.n}" min="10" max="2000" step="10"></label>
+      <label class="field"><span>Semilla</span><input type="number" id="expSeed" value="${X.seed}" step="1"></label>
+    </div>
+    ${p ? `<label class="check"><input type="checkbox" id="expUseLab" ${X.useLab ? "checked" : ""}> Usar la escena actual del laboratorio en lugar de la escena est\xE1ndar del experimento</label>` : ""}
+    <p class="fine"><strong>Par\xE1metros controlados.</strong> ${p && !X.useLab ? esc(p.controlled) : "Todo lo que no sea la variable estudiada queda fijo en los valores de la escena actual del laboratorio."} Todas las condiciones comparten semilla: mismas posiciones de evaluaci\xF3n y mismos sorteos de ruido.</p>
+    <p class="fine mono-s" id="expDesc">${esc(describe(baseCfg()))}</p>
+    <div class="row"><button class="btn primary" id="expRun">Ejecutar experimento</button><span class="fine">Volver a ejecutar sin cambiar nada repite el experimento exactamente; la huella lo comprueba.</span></div>`;
+    form.querySelector("#expPreset").addEventListener("change", (e) => selectPreset(e.target.value));
+    form.querySelector("#expHyp").addEventListener("input", (e) => {
+      X.hypothesis = e.target.value;
+    });
+    form.querySelector("#expVar").addEventListener("change", (e) => {
+      X.variable = e.target.value;
+      renderForm();
+    });
+    form.querySelector("#expValues").addEventListener("input", (e) => {
+      X.values = e.target.value;
+    });
+    form.querySelector("#expN").addEventListener("input", (e) => {
+      X.n = Number(e.target.value);
+      form.querySelector("#expDesc").textContent = describe(baseCfg());
+    });
+    form.querySelector("#expSeed").addEventListener("input", (e) => {
+      X.seed = Number(e.target.value);
+    });
+    form.querySelector("#expUseLab")?.addEventListener("change", (e) => {
+      X.useLab = e.target.checked;
+      renderForm();
+    });
+    form.querySelector("#expRun").addEventListener("click", run);
+  }
+  function resultsCsv() {
+    const lines = ["condition,sample_id,x_true_m,y_true_m,a_status,a_x_m,a_y_m,a_error_m,b_status,b_x_m,b_y_m,b_error_m"];
+    const n = (v) => v == null ? "" : v.toFixed(4);
+    for (const c of X.run.conditions) for (const r of c.result.rows) {
+      lines.push([c.value ?? "unica", r.id, n(r.x), n(r.y), r.a.status, n(r.a.x), n(r.a.y), n(r.a.err), r.b.status, n(r.b.x), n(r.b.y), n(r.b.err)].join(","));
+    }
+    return lines.join("\n") + "\n";
+  }
+  function resultsJson() {
+    const r = X.run;
+    return JSON.stringify({
+      app: "FieldLab RF",
+      data_origin: "synthetic",
+      note: "Resultados de simulaci\xF3n con el modelo log-distancia. No son mediciones de campo.",
+      hypothesis: r.hypothesis,
+      variable: r.variable,
+      seed: r.seed,
+      digest: r.digest,
+      base_config: r.base,
+      conditions: r.conditions.map((c) => ({ value: c.value, n_aps: c.result.nAps, calibration: c.result.cal, summary: c.result.summary, paired: c.result.paired }))
+    }, null, 2);
+  }
+  function reading() {
+    const cs = X.run.conditions, out = [];
+    const unit2 = VARIABLES[X.run.variable].unit;
+    if (cs.length > 1) {
+      for (const [k, name] of [["a", "A"], ["b", "B"]]) {
+        const ms = cs.map((c2) => c2.result.summary[k].mean);
+        if (ms.some((m) => m == null)) continue;
+        const iMin = ms.indexOf(Math.min(...ms));
+        out.push(`M\xE9todo ${name}: el error medio va de ${f(ms[0])} m (${cs[0].label}) a ${f(ms[ms.length - 1])} m (${cs[cs.length - 1].label}); el m\xEDnimo, ${f(ms[iMin])} m, se da en ${cs[iMin].label}.`);
+      }
+    }
+    const c = cs[X.cond], p = c.result.paired;
+    if (p.n) out.push(`En la condici\xF3n ${c.label}, sobre ${p.n} muestras con ambas estimaciones: A fue mejor en ${p.aBetter}, B en ${p.bBetter}. Diferencia media (A \u2212 B): ${f(p.meanDiffAminusB)} m.`);
+    for (const [k, name] of [["a", "A"], ["b", "B"]]) {
+      const s = c.result.summary[k];
+      if (s.nFailed) out.push(`M\xE9todo ${name}: ${s.nFailed} de ${s.nTotal} intentos sin estimaci\xF3n (${Object.entries(s.failReasons).map(([r, n]) => `${r}: ${n}`).join(", ")}). Las m\xE9tricas de error excluyen esos casos.`);
+    }
+    return out;
+  }
+  function renderResults() {
+    const el = root.querySelector("#expResults");
+    if (X.error) {
+      el.innerHTML = `<p class="note bad">${esc(X.error)}</p>`;
+      return;
+    }
+    if (!X.run) {
+      el.innerHTML = '<p class="fine">Todav\xEDa no hay resultados. Revis\xE1 la hip\xF3tesis y los par\xE1metros, y ejecut\xE1 el experimento.</p>';
+      return;
+    }
+    const r = X.run, cs = r.conditions, c = cs[X.cond];
+    const cell = (s, m) => `<td class="num">${f(s[m])}</td>`;
+    const rows = cs.map((cd, i) => ["a", "b"].map((k, j) => {
+      const s = cd.result.summary[k];
+      return `<tr class="${i === X.cond ? "sel" : ""}">${j === 0 ? `<th scope="row" rowspan="2">${esc(cd.label)}</th>` : ""}<td><span class="sym s-${k}"></span>${k.toUpperCase()}</td><td class="num">${s.nOk}/${s.nTotal}</td><td class="num">${f(s.failRate * 100, 1)} %</td>${cell(s, "mean")}${cell(s, "median")}${cell(s, "rmse")}${cell(s, "p90")}</tr>`;
+    }).join("")).join("");
+    const w = Math.max(280, Math.floor(el.clientWidth || 600));
+    const numeric = cs.length > 1;
+    el.innerHTML = `
+    <div class="runbar"><span class="chip synth">datos sint\xE9ticos</span><span>Huella <code>${r.digest}</code></span><span class="muted">semilla ${r.seed} \xB7 ${cs.length} condici\xF3n(es) \xD7 ${r.base.eval.n} posiciones \xB7 ${f(r.ms, 0)} ms</span>
+      ${X.repeat ? X.repeat.same ? '<span class="chip ok">repetici\xF3n id\xE9ntica a la corrida anterior</span>' : `<span class="chip bad">la huella cambi\xF3 (antes ${X.repeat.prev})</span>` : ""}</div>
+    ${r.hypothesis ? `<p class="hyp"><strong>Hip\xF3tesis.</strong> ${esc(r.hypothesis)}</p>` : '<p class="note warn">Este experimento se ejecut\xF3 sin hip\xF3tesis escrita.</p>'}
+    <h4>5 \xB7 M\xE9tricas de error espacial (m)</h4>
+    ${numeric ? `<p class="fine">Variable: ${esc(VARIABLES[r.variable].label)}.</p>` : ""}
+    <div class="scroll-x"><table class="data">
+      <thead><tr><th>condici\xF3n</th><th>m\xE9todo</th><th class="num">estimadas</th><th class="num">fallos</th><th class="num">media</th><th class="num">mediana</th><th class="num">RMSE</th><th class="num">P90</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <h4>6 \xB7 Comparaci\xF3n</h4>
+    ${LEGEND}
+    ${numeric ? `<label class="field inline"><span>M\xE9trica</span><select id="expMetric">${Object.entries(METRICS).map(([k, v]) => `<option value="${k}" ${k === X.metric ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+      <div class="chartbox">${sweepChart(cs, X.metric, METRICS[X.metric], VARIABLES[r.variable].label + (VARIABLES[r.variable].unit ? ` (${VARIABLES[r.variable].unit})` : ""), w)}</div>` : `<div class="chartbox">${metricBars(c.result.summary, w)}</div>`}
+    <ul class="reading">${reading().map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+    <h4>Detalle por condici\xF3n</h4>
+    ${numeric ? `<label class="field inline"><span>Condici\xF3n</span><select id="expCond">${cs.map((cd, i) => `<option value="${i}" ${i === X.cond ? "selected" : ""}>${esc(cd.label)}</option>`).join("")}</select></label>` : ""}
+    <p class="fine">Base de huellas: ${c.result.cal.nPoints} puntos (${c.result.cal.nSamples} muestras de calibraci\xF3n). Evaluaci\xF3n: ${c.result.rows.length} posiciones aleatorias que no pertenecen a la grilla de calibraci\xF3n y usan un flujo de ruido distinto.</p>
+    <div class="chartbox"><div class="charttitle">Error por muestra <span class="muted">(raya en el borde superior = sin estimaci\xF3n)</span></div>${perSampleChart(c.result.rows, w)}</div>
+    <div class="chartbox"><div class="charttitle">Distribuci\xF3n del error</div>${histChart(c.result.rows, w)}</div>
+    <h4>7 \xB7 Registro</h4>
+    <p class="fine">${esc(r.description)}</p>
+    <div class="row"><button class="btn" data-exp="csv">Ver resultados por muestra (CSV)</button><button class="btn" data-exp="json">Ver registro del experimento (JSON)</button>${inFrame ? "" : '<button class="btn" data-exp="dl">Descargar CSV</button>'}</div>
+    <div id="expExport" ${X.exportText ? "" : "hidden"}><textarea id="expExportText" rows="8" readonly spellcheck="false">${esc(X.exportText)}</textarea><div class="row"><button class="btn small" id="expCopy">Copiar</button><span class="fine" id="expCopyStatus" role="status"></span></div></div>
+    <p class="fine">Estas cifras describen el comportamiento de los algoritmos sobre datos generados por el propio modelo. No son una medida de precisi\xF3n en un entorno real.</p>`;
+    el.querySelector("#expMetric")?.addEventListener("change", (e) => {
+      X.metric = e.target.value;
+      renderResults();
+    });
+    el.querySelector("#expCond")?.addEventListener("change", (e) => {
+      X.cond = Number(e.target.value);
+      renderResults();
+    });
+    el.querySelectorAll("[data-exp]").forEach((b) => b.addEventListener("click", () => {
+      if (b.dataset.exp === "dl") return downloadText(`fieldlab_${r.variable}_${r.digest}.csv`, resultsCsv(), "text/csv");
+      X.exportText = b.dataset.exp === "csv" ? resultsCsv() : resultsJson();
+      renderResults();
+      root.querySelector("#expExportText").scrollIntoView({ block: "nearest" });
+    }));
+    el.querySelector("#expCopy")?.addEventListener("click", () => copyText(X.exportText, el.querySelector("#expExportText"), el.querySelector("#expCopyStatus")));
+  }
+  function refreshExperimentScene() {
+    if (root && (X.useLab || !preset())) {
+      const d = root.querySelector("#expDesc");
+      if (d) d.textContent = describe(baseCfg());
+    }
+  }
+  function rerenderExperimentCharts() {
+    if (root && X.run && !X.error) renderResults();
+  }
+  function initExperiments(el) {
+    root = el;
+    el.innerHTML = `<div class="card"><h3>Modo Experimento</h3>
+    <p class="fine">Cada experimento cambia una sola variable y deja el resto fijo. Los pasos van numerados: hip\xF3tesis, par\xE1metros, muestras, algoritmos, m\xE9tricas, comparaci\xF3n y registro.</p>
+    <div id="expForm"></div></div>
+    <div class="card"><h3>Resultados</h3><div id="expResults"></div></div>`;
+    selectPreset("exp1");
+  }
+
+  // src/ui/data.js
+  var D = { text: "", imp: null, analysis: null, exportText: "" };
+  var root2;
+  var SOURCE_LABEL = { synthetic: "sint\xE9tico (declarado en el archivo)", measured: "medici\xF3n real (declarado en el archivo)", undeclared: "origen no declarado" };
+  function analyze() {
+    const c = effectiveCfg();
+    D.analysis = analyzeDataset(D.imp.samples, { aps: c.env.aps.filter((a) => a.enabled !== false), assumed: c.assumed, tri: c.tri, knn: c.knn });
+    D.analysis.assumed = c.assumed;
+    D.analysis.k = c.knn.k;
+  }
+  function doImport(text) {
+    D.text = text;
+    D.analysis = null;
+    D.imp = importCsv(text, { room: S.cfg.env.room });
+    if (D.imp.ok) analyze();
+    render();
+  }
+  function estTable(rows, withTruth) {
+    const head = `<tr><th>muestra</th>${withTruth ? '<th class="num">real<br><small>m</small></th>' : ""}<th class="num">A<br><small>m</small></th>${withTruth ? '<th class="num">error A<br><small>m</small></th>' : ""}<th class="num">B<br><small>m</small></th>${withTruth ? '<th class="num">error B<br><small>m</small></th>' : ""}</tr>`;
+    const pos = (e) => e.ok ? `(${f(e.x)}, ${f(e.y)})` : `<span class="chip bad" title="${esc(e.status)}">sin estimaci\xF3n</span>`;
+    const body = rows.slice(0, 60).map((r) => `<tr><th scope="row">${esc(r.id)}</th>${withTruth ? `<td class="num">(${f(r.x)}, ${f(r.y)})</td>` : ""}<td class="num">${pos(r.a)}</td>${withTruth ? `<td class="num">${f(r.a.err)}</td>` : ""}<td class="num">${pos(r.b)}</td>${withTruth ? `<td class="num">${f(r.b.err)}</td>` : ""}</tr>`).join("");
+    return `<div class="scroll-x"><table class="data"><thead>${head}</thead><tbody>${body}</tbody></table></div>${rows.length > 60 ? `<p class="fine">Se muestran 60 de ${rows.length} muestras.</p>` : ""}`;
+  }
+  function renderResult() {
+    const imp = D.imp;
+    if (!imp) return '<p class="fine">Todav\xEDa no se import\xF3 ning\xFAn archivo.</p>';
+    if (!imp.ok) {
+      return `<p class="note bad"><strong>Archivo rechazado:</strong> ${imp.errors.length} error(es). No se import\xF3 ninguna fila.</p>
+      <div class="scroll-x"><table class="data"><thead><tr><th class="num">l\xEDnea</th><th>campo</th><th>problema</th></tr></thead><tbody>${imp.errors.slice(0, 40).map((e) => `<tr><td class="num">${e.line || "\u2014"}</td><td>${esc(e.field || "")}</td><td>${esc(e.message)}</td></tr>`).join("")}</tbody></table></div>
+      ${imp.errors.length > 40 ? `<p class="fine">Se muestran los primeros 40.</p>` : ""}`;
+    }
+    const m = imp.meta, a = D.analysis;
+    const src = m.sources.map((s) => SOURCE_LABEL[s]).join("; ");
+    const sumRow = (k, name) => {
+      const s = a.summary[k];
+      return `<tr><th scope="row"><span class="sym s-${k}"></span>${name}</th><td class="num">${s.nOk}/${s.nTotal}</td><td class="num">${f(s.failRate * 100, 1)} %</td><td class="num">${f(s.mean)}</td><td class="num">${f(s.median)}</td><td class="num">${f(s.rmse)}</td><td class="num">${f(s.p90)}</td></tr>`;
+    };
+    return `<p class="note ok"><strong>Archivo v\xE1lido.</strong> ${m.rows} filas \u2192 ${imp.samples.length} muestras \xB7 experimento(s): ${m.experiments.map(esc).join(", ")}</p>
+    <dl class="kv"><dt>Origen de los datos</dt><dd>${src}</dd>
+      <dt>Calibraci\xF3n / evaluaci\xF3n / sin posici\xF3n</dt><dd>${m.counts.calibration} / ${m.counts.evaluation} / ${m.counts.unlabeled}</dd>
+      <dt>AP en el archivo</dt><dd>${m.apIds.map(esc).join(", ")}</dd>
+      <dt>AP que coinciden con el plano</dt><dd>${a.matchedAps.map(esc).join(", ") || "ninguno"}${a.unmatchedAps.length ? ` <span class="muted">(sin posici\xF3n en el plano: ${a.unmatchedAps.map(esc).join(", ")})</span>` : ""}</dd>
+      <dt>Lecturas faltantes</dt><dd>${m.missingReadings}</dd></dl>
+    ${imp.warnings.length ? `<details><summary>${imp.warnings.length} advertencia(s)</summary><ul class="reading">${imp.warnings.slice(0, 30).map((w) => `<li>${w.line ? `L\xEDnea ${w.line}: ` : ""}${esc(w.message)}</li>`).join("")}</ul></details>` : ""}
+    <h4>An\xE1lisis</h4>
+    <p class="fine">El m\xE9todo A usa las posiciones de los AP del plano actual y el modelo supuesto (P\u2080 ${f(a.assumed.p0, 1)} dBm, n ${f(a.assumed.n, 2)}). El m\xE9todo B construye su mapa solo con las ${m.counts.calibration} muestras de calibraci\xF3n del archivo (${a.calPoints} posiciones distintas), k = ${a.k}. <button class="btn small" id="dataReanalyze">Volver a analizar con la escena actual</button></p>
+    ${a.summary ? `<div class="scroll-x"><table class="data"><thead><tr><th>m\xE9todo</th><th class="num">estimadas</th><th class="num">fallos</th><th class="num">media</th><th class="num">mediana</th><th class="num">RMSE</th><th class="num">P90</th></tr></thead><tbody>${sumRow("a", "A \xB7 multilateraci\xF3n")}${sumRow("b", "B \xB7 k-NN")}</tbody></table></div>
+      <p class="fine">Error espacial en metros, calculado sobre las ${m.counts.evaluation} muestras de evaluaci\xF3n.${m.counts.evaluation < 30 ? " Con tan pocas muestras, percentiles y RMSE son muy inestables." : ""}</p>
+      <details><summary>Estimaciones por muestra de evaluaci\xF3n</summary>${estTable(a.evalRows, true)}</details>` : '<p class="note warn">El archivo no tiene muestras de evaluaci\xF3n con posici\xF3n conocida: <strong>no se calcula ninguna m\xE9trica de error de posicionamiento</strong>.</p>'}
+    ${a.unlabeledRows.length ? `<details open><summary>Muestras sin posici\xF3n conocida (${a.unlabeledRows.length})</summary><p class="fine">Reciben una estimaci\xF3n, pero no existe posici\xF3n real contra la cual compararla. No tienen error.</p>${estTable(a.unlabeledRows, false)}</details>` : ""}`;
+  }
+  function render() {
+    root2.querySelector("#dataText").value = D.text;
+    root2.querySelector("#dataResult").innerHTML = renderResult();
+    root2.querySelector("#dataReanalyze")?.addEventListener("click", () => {
+      analyze();
+      render();
+    });
+    const ex = root2.querySelector("#dataExport");
+    ex.hidden = !D.exportText;
+    root2.querySelector("#dataExportText").value = D.exportText;
+  }
+  function exportScene() {
+    const c = effectiveCfg();
+    const cal = generateSamples(c.env, gridPositions(c.env.room, c.cal.spacing), { seed: c.seed, role: "calibration", reads: c.cal.reads, experimentId: `escena-s${c.seed}` });
+    const ev = generateSamples(c.env, randomPositions(c.env.room, 50, c.seed), { seed: c.seed, role: "evaluation", experimentId: `escena-s${c.seed}` });
+    D.exportText = exportCsv([...cal, ...ev]);
+    render();
+  }
+  function initData(el) {
+    root2 = el;
+    const cols = [
+      ["experiment_id", "s\xED", "texto", "Identificador del experimento o campa\xF1a."],
+      ["sample_id", "s\xED", "texto", "Identificador de la muestra: un instante y un lugar. Todas las filas de una muestra lo comparten."],
+      ["ap_id", "s\xED", "texto", "Identificador del punto de acceso. Debe coincidir con el nombre del AP en el plano para usar el m\xE9todo A."],
+      ["rssi_dbm", "s\xED", "dBm, \u2212120 \u2026 0", "Intensidad recibida. Vac\xEDo = el AP no se detect\xF3 en esa muestra."],
+      ["x_m, y_m", "no", "metros", "Posici\xF3n conocida del receptor. Ambas o ninguna. Origen en la esquina inferior izquierda del recinto."],
+      ["role", "no", "calibration \xB7 evaluation \xB7 unlabeled", "Uso de la muestra. Si falta: con posici\xF3n \u2192 evaluation; sin posici\xF3n \u2192 unlabeled. Nunca se asume calibration."],
+      ["timestamp_iso", "no", "ISO 8601", "Marca temporal, por ejemplo 2026-11-10T14:30:00Z."],
+      ["source", "no", "synthetic \xB7 measured", "Origen declarado del dato. Si falta, la aplicaci\xF3n lo trata como no declarado."]
+    ];
+    el.innerHTML = `<div class="card"><h3>Importar mediciones (CSV)</h3>
+    <p class="fine">Formato largo: una fila por muestra y punto de acceso. Separador coma, punto decimal, codificaci\xF3n UTF-8. La importaci\xF3n es todo o nada: un solo error rechaza el archivo completo. La aplicaci\xF3n no se conecta a ning\xFAn hardware ni pide permisos; las mediciones de un ESP32 se cargan como archivo.</p>
+    <details><summary>Esquema de columnas</summary><div class="scroll-x"><table class="data"><thead><tr><th>columna</th><th>obligatoria</th><th>unidad / valores</th><th>significado</th></tr></thead><tbody>${cols.map((c) => `<tr><th scope="row"><code>${c[0]}</code></th><td>${c[1]}</td><td>${c[2]}</td><td>${c[3]}</td></tr>`).join("")}</tbody></table></div></details>
+    <div class="row"><button class="btn" id="dataExample">Cargar conjunto de ejemplo (sint\xE9tico)</button><label class="btn filebtn">Elegir archivo CSV<input type="file" id="dataFile" accept=".csv,text/csv,text/plain"></label></div>
+    <label class="field wide"><span>O peg\xE1 el contenido del CSV</span><textarea id="dataText" rows="6" spellcheck="false" placeholder="experiment_id,sample_id,ap_id,rssi_dbm,x_m,y_m,role,timestamp_iso,source"></textarea></label>
+    <div class="row"><button class="btn primary" id="dataImport">Validar e importar</button></div>
+    <div id="dataResult"></div></div>
+  <div class="card"><h3>Exportar la escena actual</h3>
+    <p class="fine">Genera, con el modelo y la semilla actuales, la grilla de calibraci\xF3n y 50 muestras de evaluaci\xF3n en el mismo esquema. Cada fila lleva <code>source = synthetic</code>.</p>
+    <div class="row"><button class="btn" id="dataExportBtn">Generar CSV sint\xE9tico</button></div>
+    <div id="dataExport" hidden><textarea id="dataExportText" rows="8" readonly spellcheck="false"></textarea><div class="row"><button class="btn small" id="dataCopy">Copiar</button>${inFrame ? "" : '<button class="btn small" id="dataDownload">Descargar</button>'}<span class="fine" id="dataCopyStatus" role="status"></span></div></div></div>`;
+    el.querySelector("#dataExample").addEventListener("click", () => doImport(exampleDatasetCsv()));
+    el.querySelector("#dataImport").addEventListener("click", () => doImport(el.querySelector("#dataText").value));
+    el.querySelector("#dataFile").addEventListener("change", (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const fr = new FileReader();
+      fr.onload = () => doImport(String(fr.result));
+      fr.onerror = () => {
+        D.imp = { ok: false, errors: [{ line: 0, field: null, message: "No se pudo leer el archivo." }], warnings: [] };
+        render();
+      };
+      fr.readAsText(file);
+      ev.target.value = "";
+    });
+    el.querySelector("#dataExportBtn").addEventListener("click", exportScene);
+    el.querySelector("#dataCopy").addEventListener("click", () => copyText(D.exportText, el.querySelector("#dataExportText"), el.querySelector("#dataCopyStatus")));
+    el.querySelector("#dataDownload")?.addEventListener("click", () => downloadText("fieldlab_escena.csv", D.exportText, "text/csv"));
+    render();
+  }
+
+  // src/ui/learn.js
+  var CONCEPTS = [
+    ["Qu\xE9 representa RSSI", `<p>RSSI (<em>Received Signal Strength Indicator</em>) es la potencia con la que el receptor capta una se\xF1al, expresada en dBm: decibelios respecto de 1 mW. Es una escala logar\xEDtmica: \u221240 dBm es una se\xF1al fuerte, \u221290 dBm est\xE1 cerca del l\xEDmite de detecci\xF3n, y cada \u221210 dB significa diez veces menos potencia.</p><p>En un ESP32 el valor llega como un entero y depende del chip, la antena y su orientaci\xF3n. Dos dispositivos en el mismo lugar pueden informar valores distintos.</p>`],
+    ["Por qu\xE9 RSSI no equivale a distancia", `<p>La potencia media s\xED disminuye con la distancia, pero cada lectura individual tambi\xE9n depende de reflexiones, obst\xE1culos, personas, orientaci\xF3n de antenas e interferencia. Como la relaci\xF3n es logar\xEDtmica, un error peque\xF1o en dB se convierte en un error <em>multiplicativo</em> en metros: con n = 2,5, una lectura 3 dB m\xE1s baja de lo esperado alarga la distancia inferida un 32 %, sea a 2 m o a 20 m.</p><p>Probalo en el laboratorio: puls\xE1 \xABNueva medici\xF3n\xBB varias veces sin mover el receptor y mir\xE1 c\xF3mo cambia la columna \xABd inferida\xBB.</p>`],
+    ["El exponente de p\xE9rdida de trayectoria n", `<p>n indica con qu\xE9 rapidez cae la potencia al alejarse. En espacio libre vale 2. En interiores suele citarse entre 1,6 (pasillos que gu\xEDan la se\xF1al) y 4 o m\xE1s (ambientes con muchos obst\xE1culos); son valores orientativos de la bibliograf\xEDa, no mediciones de esta aplicaci\xF3n.</p><p>n no es una constante universal: es un par\xE1metro que se ajusta a cada entorno.</p>`],
+    ["Qu\xE9 efecto tienen las paredes", `<p>En este modelo, cada pared que corta la l\xEDnea recta entre el AP y el receptor resta una cantidad fija de dB. El m\xE9todo geom\xE9trico no sabe que la pared existe: interpreta esa p\xE9rdida como distancia adicional y desplaza la estimaci\xF3n.</p><p>En la realidad la atenuaci\xF3n depende del material, el espesor, el \xE1ngulo y la frecuencia, y la se\xF1al tambi\xE9n llega por caminos reflejados. Aqu\xED nada de eso se simula.</p>`],
+    ["Qu\xE9 significa calibrar un modelo", `<p>Calibrar es elegir los par\xE1metros del modelo (P\u2080 y n) para que reproduzca mediciones hechas en posiciones conocidas del entorno real. En esta aplicaci\xF3n hay dos juegos de par\xE1metros: los del <strong>modelo verdadero</strong>, que genera los datos, y los del <strong>estimador</strong>, que los interpreta. Cuando coinciden, la calibraci\xF3n es correcta. Si los separ\xE1s (pesta\xF1a Modelo), simul\xE1s un estimador mal calibrado.</p><p>El fingerprinting calibra de otra forma: no ajusta par\xE1metros, guarda directamente las mediciones.</p>`],
+    ["C\xF3mo funciona k-NN", `<p>Primero se mide el vector de RSSI en una grilla de posiciones conocidas: el mapa de huellas. Para ubicar una medici\xF3n nueva, se calcula su distancia (en dB) a cada huella, se eligen las k m\xE1s parecidas y se promedian sus posiciones.</p><p>No supone ning\xFAn modelo de propagaci\xF3n, as\xED que absorbe paredes y particularidades del lugar. A cambio exige una campa\xF1a de medici\xF3n, su resoluci\xF3n est\xE1 limitada por el paso de la grilla, y el mapa envejece: si se mueve un AP o un mueble grande, hay que recalibrar.</p>`],
+    ["Qu\xE9 significa RMSE", `<p>Es la ra\xEDz del error cuadr\xE1tico medio: se eleva cada error al cuadrado, se promedia y se saca la ra\xEDz. Se expresa en metros, igual que la media, pero castiga m\xE1s los errores grandes. Si RMSE es bastante mayor que el error medio, hay unas pocas estimaciones muy malas.</p><p>Aqu\xED siempre se refiere al error <em>espacial</em> (distancia entre posici\xF3n estimada y real), nunca al error de RSSI en dB.</p>`],
+    ["Por qu\xE9 funciona en datos sint\xE9ticos y falla en un entorno real", `<p>Los datos sint\xE9ticos salen del mismo modelo que el estimador supone. El algoritmo juega con ventaja: la forma de la ley de propagaci\xF3n es exactamente la correcta y el ruido es gaussiano, independiente y de varianza conocida.</p><p>En un edificio real hay multitrayecto, desvanecimiento correlacionado en el espacio y en el tiempo, antenas no isotr\xF3picas, personas que se mueven, interferencia y diferencias entre dispositivos. Un resultado obtenido aqu\xED indica c\xF3mo se comporta el algoritmo bajo hip\xF3tesis ideales; no predice su precisi\xF3n en campo.</p>`]
+  ];
+  var FORMULAS = `
+<div class="formula"><div class="eq">RSSI(d) = P\u2080 + \u0394P \u2212 10\xB7n\xB7log\u2081\u2080( max(d, d\u2080) / d\u2080 ) \u2212 \u03A3 L<sub>pared</sub> + \u03B5</div>
+<dl class="kv"><dt>P\u2080</dt><dd>RSSI de referencia a la distancia d\u2080 (dBm)</dd><dt>\u0394P</dt><dd>diferencia propia de cada AP (dB); 0 por defecto</dd><dt>n</dt><dd>exponente de p\xE9rdida de trayectoria</dd><dt>d, d\u2080</dt><dd>distancia AP\u2013receptor y distancia de referencia (m). Para d &lt; d\u2080 se usa d\u2080: el RSSI se satura en P\u2080</dd><dt>L<sub>pared</sub></dt><dd>atenuaci\xF3n de cada pared que corta la l\xEDnea recta AP\u2013receptor (dB)</dd><dt>\u03B5</dt><dd>ruido gaussiano de media 0 y desv\xEDo \u03C3 (dB), independiente en cada lectura</dd></dl></div>
+<div class="formula"><div class="eq">d\u0302 = d\u2080 \xB7 10<sup>(P\u2080 \u2212 RSSI) / (10\xB7n)</sup></div><p class="fine">Inversi\xF3n del modelo que usa el m\xE9todo A, con los P\u2080 y n que supone el estimador. Si RSSI \u2265 P\u2080 solo puede afirmarse d\u0302 \u2264 d\u2080.</p></div>
+<div class="formula"><div class="eq">p\u0302 = argmin<sub>p</sub> \u03A3<sub>i</sub> w<sub>i</sub> \xB7 ( \u2016p \u2212 a<sub>i</sub>\u2016 \u2212 d\u0302<sub>i</sub> )\xB2,   w<sub>i</sub> = 1 / d\u0302<sub>i</sub>\xB2</div><p class="fine">M\xE9todo A. a<sub>i</sub> es la posici\xF3n del AP i. Se resuelve con Levenberg\u2013Marquardt desde tres puntos de partida.</p></div>
+<div class="formula"><div class="eq">D(q, f) = \u221A( (1/M) \xB7 \u03A3<sub>i</sub> (q<sub>i</sub> \u2212 f<sub>i</sub>)\xB2 )</div><p class="fine">M\xE9todo B. Distancia en dB entre el vector medido q y una huella f sobre los M AP del mapa. Un AP sin se\xF1al cuenta como \u2212100 dBm.</p></div>
+<div class="formula"><div class="eq">e<sub>j</sub> = \u2016p\u0302<sub>j</sub> \u2212 p<sub>j</sub>\u2016   \xB7   media = (1/N) \u03A3 e<sub>j</sub>   \xB7   RMSE = \u221A( (1/N) \u03A3 e<sub>j</sub>\xB2 )</div><p class="fine">Error espacial de la muestra j, en metros. La mediana y el percentil 90 son los valores por debajo de los cuales queda el 50 % y el 90 % de los errores (interpolaci\xF3n lineal). La tasa de fallos es la fracci\xF3n de intentos sin estimaci\xF3n; esos intentos no entran en las dem\xE1s m\xE9tricas.</p></div>`;
+  var LIMITS = `<ul class="reading">
+<li><strong>Principio f\xEDsico:</strong> la potencia media decae con la distancia siguiendo aproximadamente una ley de potencia. Es lo \xFAnico que el modelo toma de la f\xEDsica.</li>
+<li><strong>Simplificaciones:</strong> dos dimensiones; antenas isotr\xF3picas; un solo camino en l\xEDnea recta; paredes como p\xE9rdida fija sin reflexi\xF3n ni difracci\xF3n; ruido gaussiano independiente entre lecturas, AP y posiciones; mismo n en todo el recinto; sin interferencia, sin canales, sin movimiento.</li>
+<li><strong>Datos sint\xE9ticos:</strong> todo lo que muestran el laboratorio y los experimentos fue generado por este modelo con un generador pseudoaleatorio.</li>
+<li><strong>Mediciones importadas:</strong> solo las que cargues en la pesta\xF1a Datos. La aplicaci\xF3n muestra el origen que declara el archivo y no lo verifica.</li>
+<li><strong>Resultados calculados:</strong> estimaciones y m\xE9tricas. Heredan las limitaciones de los datos con los que se calculan.</li>
+<li><strong>Sin validar en campo:</strong> este prototipo no se prob\xF3 con hardware real.</li></ul>`;
+  var EXERCISES = [
+    {
+      title: "Ejercicio 1 \xB7 Una lectura no es una distancia",
+      goal: "Ver cu\xE1nto se mueve la distancia inferida cuando el receptor no se mueve.",
+      load: () => {
+        const c = liveScene();
+        c.env.walls = [];
+        c.env.model.sigma = 4;
+        loadScene(c, { rx: { x: 8, y: 4 } });
+      },
+      steps: [
+        "Carg\xE1 la escena: cuatro AP, sin paredes, ruido \u03C3 = 4 dB.",
+        "En Laboratorio, puls\xE1 \xABNueva medici\xF3n\xBB diez veces sin mover el receptor. Anot\xE1 el menor y el mayor valor de \xABd inferida\xBB para AP1 y comparalos con \xABd real\xBB.",
+        "Sub\xED \xABLecturas por medici\xF3n\xBB a 10 y repet\xED. \xBFCu\xE1nto se estrecha el rango?",
+        "Arrastr\xE1 el receptor hasta quedar a menos de 1 m de un AP. Mir\xE1 el asterisco en \xABd real\xBB y el \xAB\u2264\xBB en \xABd inferida\xBB: ah\xED el modelo se satura."
+      ],
+      expect: "Con una lectura, la distancia inferida a un AP lejano puede variar varios metros. Promediar 10 lecturas reduce el desv\xEDo del RSSI a cerca de \u03C3/\u221A10 \u2248 1,3 dB."
+    },
+    {
+      title: "Ejercicio 2 \xB7 La pared que el modelo no conoce",
+      goal: "Aislar el sesgo que introduce una pared, sin ruido que lo tape.",
+      load: () => {
+        const c = liveScene();
+        c.env.model.sigma = 0;
+        c.env.walls = [{ id: "W1", x1: 5, y1: 0, x2: 5, y2: 8, att: 8 }];
+        loadScene(c, { rx: { x: 9, y: 3 }, selected: { type: "wall", id: "W1" } });
+      },
+      steps: [
+        "Carg\xE1 la escena: \u03C3 = 0 y una pared de 8 dB que divide el recinto. El receptor queda a la derecha.",
+        "En la tabla Se\xF1ales, compar\xE1 \xABd real\xBB y \xABd inferida\xBB de AP1 y AP4, que est\xE1n del otro lado. Anot\xE1 el error del m\xE9todo A y del m\xE9todo B.",
+        "Con la pared seleccionada, baj\xE1 su atenuaci\xF3n a 0 dB. El error de A deber\xEDa caer a 0,00 m. El de B no: su resoluci\xF3n est\xE1 limitada por la grilla.",
+        "Volv\xE9 a 8 dB y abr\xED Experimentos \u2192 \xAB3 \xB7 Paredes\xBB para ver el mismo efecto sobre 200 posiciones."
+      ],
+      expect: "Con 8 dB y n = 2,5, la distancia inferida a trav\xE9s de la pared es 10^(8/25) \u2248 2,1 veces la real. El m\xE9todo B casi no cambia, porque su mapa se midi\xF3 con la pared puesta.",
+      exp: "exp3"
+    },
+    {
+      title: "Ejercicio 3 \xB7 Calibrar y descalibrar",
+      goal: "Encontrar el n correcto mirando el error, y comprobar que un mapa de huellas envejece.",
+      load: () => {
+        const c = baseConfig();
+        c.env.model.sigma = 2;
+        c.assumed.n = 3.5;
+        loadScene(c, { rx: { x: 4, y: 5 }, linked: false });
+      },
+      steps: [
+        "Carg\xE1 la escena: seis AP, \u03C3 = 2 dB. El estimador supone n = 3,5 pero los datos se generan con n = 2,5.",
+        "Mir\xE1 los c\xEDrculos punteados (distancias inferidas): quedan cortos y no se cruzan en el receptor. Anot\xE1 el error de A.",
+        "En Modelo \u2192 Estimador, cambi\xE1 \xABn supuesto\xBB de a 0,25 hasta minimizar el error de A. \xBFEn qu\xE9 valor ocurre? Movete a otras tres posiciones para confirmar que no fue casualidad.",
+        "Ahora el mapa: en Modelo \u2192 Fingerprinting desactiv\xE1 \xABRecalibrar autom\xE1ticamente\xBB y arrastr\xE1 AP3 dos metros. Aparece el aviso de mapa desactualizado y el error de B crece. Puls\xE1 \xABRecalibrar\xBB.",
+        "Abr\xED Experimentos \u2192 \xAB4 \xB7 Calibraci\xF3n\xBB para medir el efecto de n sobre 200 posiciones."
+      ],
+      expect: "El error de A es m\xEDnimo cerca de n = 2,5. Un n supuesto mayor que el real acorta todas las distancias; uno menor las alarga. B no depende de n, pero s\xED de que la escena no cambie despu\xE9s de calibrar.",
+      exp: "exp4"
+    }
+  ];
+  function initLearn(el, go2) {
+    el.innerHTML = `
+  <div class="card"><h3>Ejercicios guiados</h3>
+    ${EXERCISES.map((x, i) => `<details class="exercise" ${i === 0 ? "open" : ""}><summary>${x.title}</summary>
+      <p><strong>Objetivo.</strong> ${x.goal}</p>
+      <ol>${x.steps.map((s) => `<li>${s}</li>`).join("")}</ol>
+      <p class="fine"><strong>Qu\xE9 deber\xEDas observar.</strong> ${x.expect}</p>
+      <div class="row"><button class="btn primary" data-ex="${i}">Cargar la escena en el laboratorio</button>${x.exp ? `<button class="btn" data-exp="${x.exp}">Abrir el experimento relacionado</button>` : ""}</div></details>`).join("")}
+  </div>
+  <div class="card"><h3>Conceptos</h3>${CONCEPTS.map(([t, body], i) => `<details ${i === 0 ? "open" : ""}><summary>${t}</summary><div class="prose">${body}</div></details>`).join("")}</div>
+  <div class="card"><h3>F\xF3rmulas</h3>${FORMULAS}</div>
+  <div class="card"><h3>Qu\xE9 es f\xEDsica, qu\xE9 es suposici\xF3n y qu\xE9 es dato</h3>${LIMITS}</div>`;
+    el.querySelectorAll("[data-ex]").forEach((b) => b.addEventListener("click", () => {
+      EXERCISES[Number(b.dataset.ex)].load();
+      update();
+      go2("lab");
+    }));
+    el.querySelectorAll("[data-exp]").forEach((b) => b.addEventListener("click", () => go2("exp", b.dataset.exp)));
+  }
+
+  // src/ui/main.js
+  var TABS = [["lab", "Laboratorio"], ["model", "Modelo"], ["exp", "Experimentos"], ["data", "Datos"], ["learn", "Aprender"]];
+  var num = (label, path, step, unit2, min, max, hint) => `<label class="field"><span>${label}</span><span class="inp"><input type="number" id="in-${path.replace(/\./g, "-")}" data-bind="${path}" step="${step}" min="${min}" max="${max}"><em>${unit2}</em></span>${hint ? `<small>${hint}</small>` : ""}</label>`;
+  var chk = (label, path) => `<label class="check"><input type="checkbox" id="in-${path.replace(/\./g, "-")}" data-bind="${path}"> ${label}</label>`;
+  function shell() {
+    return `
+<header class="top"><div class="brand"><span class="eyebrow">JUMP LAB \xB7 instrumento 01</span><h1>FieldLab RF</h1></div>
+  <div class="status"><span class="chip synth">datos sint\xE9ticos</span><span class="fine">Modelo log-distancia simplificado. No es una medici\xF3n de campo.</span></div></header>
+<main class="app" id="app" data-tab="lab">
+  <section class="stage" aria-label="Plano del laboratorio">
+    <div class="toolbar" role="toolbar" aria-label="Herramientas del plano">
+      <div class="seg" id="tools"><button data-tool="select" title="Mover elementos y desplazar el plano">Mover</button><button data-tool="ap" title="Toc\xE1 el plano para colocar un punto de acceso">+ AP</button><button data-tool="wall" title="Arrastr\xE1 sobre el plano para dibujar una pared">+ Pared</button></div>
+      <button class="btn small danger" id="btnDelete" title="Eliminar el elemento seleccionado">Eliminar</button>
+      <div class="seg"><button id="zoomOut" aria-label="Alejar">\u2212</button><button id="zoomFit" aria-label="Ajustar a la vista">Ajustar</button><button id="zoomIn" aria-label="Acercar">+</button></div>
+    </div>
+    <p class="toolhint" id="toolHint" role="status"></p>
+    <div class="planwrap"><svg id="plan" tabindex="0" role="application" aria-label="Plano interactivo del recinto, en metros. Las flechas mueven el receptor o el AP seleccionado."></svg></div>
+    <div class="planlegend">
+      <span><span class="sym s-rx"></span>receptor (posici\xF3n real)</span><span><span class="sym s-a"></span>estimaci\xF3n A</span><span><span class="sym s-b"></span>estimaci\xF3n B</span><span><span class="sym s-ap"></span>AP</span><span><span class="sym s-wall"></span>pared</span><span><span class="sym s-cal"></span>punto de calibraci\xF3n</span>
+    </div>
+    <div class="layerbar">
+      <label class="field inline"><span>Capa</span><select id="overlay"><option value="none">Sin mapa de calor</option><option value="rssi">RSSI medio del AP seleccionado</option><option value="errA">Error medio del m\xE9todo A</option><option value="errB">Error medio del m\xE9todo B</option></select></label>
+      <label class="check"><input type="checkbox" id="showCircles"> C\xEDrculos de distancia inferida</label>
+      <label class="check"><input type="checkbox" id="showCal"> Puntos de calibraci\xF3n</label>
+      <div id="planLegendScale" class="scalewrap"></div>
+    </div>
+    <div class="inspector" id="inspector"></div>
+  </section>
+  <section class="side">
+    <nav class="tabs" role="tablist" aria-label="Secciones">${TABS.map(([k, t]) => `<button role="tab" id="tabbtn-${k}" data-tab="${k}" aria-controls="tab-${k}">${t}</button>`).join("")}</nav>
+    <div class="tabpanel" id="tab-lab" role="tabpanel" aria-labelledby="tabbtn-lab">
+      <div class="card"><h3>Posicionamiento</h3><div id="positioning"></div>
+        <div class="row measure"><button class="btn primary" id="btnMeasure">Nueva medici\xF3n</button><label class="check"><input type="checkbox" id="autoMeasure"> Medir en continuo (4 por segundo)</label>
+        ${num("Lecturas por medici\xF3n", "reads", 1, "", 1, 30)}</div></div>
+      <div class="card"><h3>Se\xF1ales</h3><div id="signals"></div></div>
+      <div class="card"><h3>C\xF3mo se obtuvo cada estimaci\xF3n</h3><div id="intermediates"></div></div>
+    </div>
+    <div class="tabpanel" id="tab-model" role="tabpanel" aria-labelledby="tabbtn-model" hidden>
+      <div class="card"><h3>Recinto</h3><div class="fields">${num("Ancho", "cfg.env.room.w", 0.5, "m", 2, 60)}${num("Alto", "cfg.env.room.h", 0.5, "m", 2, 60)}</div></div>
+      <div class="card"><h3>Modelo verdadero <small>genera los datos sint\xE9ticos</small></h3><div class="fields">
+        ${num("P\u2080 \xB7 RSSI de referencia", "cfg.env.model.p0", 1, "dBm", -80, 0)}${num("n \xB7 exponente de p\xE9rdida", "cfg.env.model.n", 0.1, "", 1, 6)}${num("d\u2080 \xB7 distancia de referencia", "cfg.env.model.d0", 0.1, "m", 0.1, 5)}
+        ${num("\u03C3 \xB7 ruido por lectura", "cfg.env.model.sigma", 0.5, "dB", 0, 15)}${num("Piso de sensibilidad", "cfg.env.model.floor", 1, "dBm", -120, -60, "Por debajo, la lectura falta")}${num("Semilla", "cfg.seed", 1, "", 0, 4294967295)}</div>
+        <p class="fine">Con la misma semilla y los mismos par\xE1metros, todos los n\xFAmeros de la aplicaci\xF3n se repiten exactamente.</p></div>
+      <div class="card"><h3>Estimador <small>lo que el m\xE9todo A supone</small></h3>
+        ${chk("Calibraci\xF3n correcta: usar los mismos P\u2080 y n que el modelo verdadero", "linked")}
+        <div class="fields">${num("P\u2080 supuesto", "cfg.assumed.p0", 1, "dBm", -80, 0)}${num("n supuesto", "cfg.assumed.n", 0.05, "", 1, 6)}</div>
+        ${chk("Ponderar cada AP por 1/d\u0302\xB2 (las distancias largas pesan menos)", "cfg.tri.weighted")}
+        <p class="fine">El estimador conoce las posiciones de los AP. No conoce las paredes ni el \u0394P de cada AP.</p></div>
+      <div class="card"><h3>Fingerprinting <small>m\xE9todo B</small></h3><div class="fields">
+        ${num("k vecinos", "cfg.knn.k", 1, "", 1, 50)}${num("Paso de la grilla", "cfg.cal.spacing", 0.25, "m", 0.5, 10)}${num("Lecturas por punto", "cfg.cal.reads", 1, "", 1, 50)}</div>
+        ${chk("Ponderar vecinos por 1/(D + \u03B5)", "cfg.knn.weighted")}${chk("Recalibrar autom\xE1ticamente cuando cambia la escena", "autoCal")}
+        <div class="row"><button class="btn" id="btnRecal">Recalibrar ahora</button><span class="fine" id="calStatus" role="status"></span></div></div>
+      <div class="card"><h3>Escenas</h3><div class="row"><button class="btn" data-scene="live">4 AP y una pared (inicial)</button><button class="btn" data-scene="six">6 AP y dos paredes</button><button class="btn" data-scene="collinear">3 AP en l\xEDnea (geometr\xEDa degenerada)</button></div></div>
+    </div>
+    <div class="tabpanel" id="tab-exp" role="tabpanel" aria-labelledby="tabbtn-exp" hidden></div>
+    <div class="tabpanel" id="tab-data" role="tabpanel" aria-labelledby="tabbtn-data" hidden></div>
+    <div class="tabpanel" id="tab-learn" role="tabpanel" aria-labelledby="tabbtn-learn" hidden></div>
+  </section>
+</main>
+<footer class="foot"><span>FieldLab RF \xB7 prototipo de estudio. No es un sistema de localizaci\xF3n ni de seguimiento de personas.</span></footer>`;
+  }
+  var getPath = (path) => path.split(".").reduce((o, k) => o[k], S);
+  function setPath(path, v) {
+    const ks = path.split(".");
+    const last = ks.pop();
+    ks.reduce((o, k) => o[k], S)[last] = v;
+  }
+  function syncInputs() {
+    document.querySelectorAll("[data-bind]").forEach((el) => {
+      const v = getPath(el.dataset.bind);
+      if (el.type === "checkbox") el.checked = !!v;
+      else if (document.activeElement !== el) el.value = Number.isInteger(v) ? v : +Number(v).toFixed(3);
+    });
+    for (const p of ["cfg.assumed.p0", "cfg.assumed.n"]) {
+      const el = document.querySelector(`[data-bind="${p}"]`);
+      el.disabled = S.linked;
+      if (S.linked) el.value = p.endsWith("p0") ? S.cfg.env.model.p0 : S.cfg.env.model.n;
+    }
+  }
+  function onBound(el, commit) {
+    const path = el.dataset.bind;
+    if (el.type === "checkbox") {
+      if (path === "linked" && !el.checked) {
+        S.cfg.assumed.p0 = S.cfg.env.model.p0;
+        S.cfg.assumed.n = S.cfg.env.model.n;
+      }
+      setPath(path, el.checked);
+    } else {
+      let v = Number(el.value);
+      if (el.value === "" || !Number.isFinite(v)) return;
+      const lo = Number(el.min), hi = Number(el.max);
+      if (v < lo || v > hi) {
+        if (!commit) return;
+        v = Math.min(hi, Math.max(lo, v));
+      }
+      if (["cfg.knn.k", "cfg.cal.reads", "reads", "cfg.seed"].includes(path)) v = Math.round(v);
+      setPath(path, v);
+      if (commit) el.value = v;
+      if (path.startsWith("cfg.env.room")) enforceRoom();
+    }
+    update();
+  }
+  var heatTimer = null;
+  var autoTimer = null;
+  function go(tab, presetId) {
+    S.tab = tab;
+    if (presetId) selectPreset(presetId);
+    renderChrome();
+    if (tab === "exp") rerenderExperimentCharts();
+    if (tab === "lab" || tab === "model") renderPlan();
+    document.querySelector(".side").scrollIntoView({ block: "nearest" });
+    if (tab === "lab" && matchMedia("(max-width: 980px)").matches) window.scrollTo({ top: 0 });
+  }
+  function renderChrome() {
+    document.getElementById("app").dataset.tab = S.tab;
+    for (const [k] of TABS) {
+      document.getElementById(`tab-${k}`).hidden = k !== S.tab;
+      const b = document.getElementById(`tabbtn-${k}`);
+      b.setAttribute("aria-selected", k === S.tab ? "true" : "false");
+    }
+    document.querySelectorAll("#tools button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tool === S.tool ? "true" : "false"));
+    document.getElementById("btnDelete").disabled = !S.selected;
+    document.getElementById("toolHint").textContent = S.tool === "ap" ? "Toc\xE1 el plano donde quer\xE9s colocar el punto de acceso." : S.tool === "wall" ? "Arrastr\xE1 sobre el plano para dibujar la pared. Se crea con 6 dB; despu\xE9s pod\xE9s editarla." : "";
+    document.getElementById("overlay").value = S.overlay;
+    document.getElementById("showCircles").checked = S.showCircles;
+    document.getElementById("showCal").checked = S.showCal;
+  }
+  function render2() {
+    renderChrome();
+    syncInputs();
+    renderPlan();
+    renderPositioning(document.getElementById("positioning"));
+    renderSignals(document.getElementById("signals"));
+    renderIntermediates(document.getElementById("intermediates"));
+    const insp = document.getElementById("inspector");
+    if (!insp.contains(document.activeElement) || !S.selected) renderInspector(insp);
+    const L = S.live;
+    document.getElementById("calStatus").textContent = `${S.db.points.length} puntos \xB7 ${L.stale ? "desactualizado respecto de la escena" : "vigente"}`;
+    refreshExperimentScene();
+    if (S.overlay.startsWith("err") && !S.heat) {
+      clearTimeout(heatTimer);
+      heatTimer = setTimeout(() => {
+        computeHeat();
+        renderPlan();
+      }, 250);
+    }
+  }
+  function boot() {
+    document.getElementById("root").innerHTML = shell();
+    initPlan(document.querySelector(".stage"));
+    initExperiments(document.getElementById("tab-exp"));
+    initData(document.getElementById("tab-data"));
+    initLearn(document.getElementById("tab-learn"), go);
+    onUpdate(render2);
+    document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
+    document.querySelectorAll("#tools button").forEach((b) => b.addEventListener("click", () => {
+      S.tool = b.dataset.tool;
+      renderChrome();
+    }));
+    document.getElementById("btnDelete").addEventListener("click", deleteSelected);
+    document.getElementById("zoomIn").addEventListener("click", () => zoomBy(1 / 1.3));
+    document.getElementById("zoomOut").addEventListener("click", () => zoomBy(1.3));
+    document.getElementById("zoomFit").addEventListener("click", () => {
+      fitView();
+      renderPlan();
+    });
+    document.getElementById("overlay").addEventListener("change", (e) => {
+      S.overlay = e.target.value;
+      update();
+    });
+    document.getElementById("showCircles").addEventListener("change", (e) => {
+      S.showCircles = e.target.checked;
+      renderPlan();
+    });
+    document.getElementById("showCal").addEventListener("change", (e) => {
+      S.showCal = e.target.checked;
+      renderPlan();
+    });
+    document.getElementById("btnMeasure").addEventListener("click", () => {
+      S.tick++;
+      update();
+    });
+    document.getElementById("autoMeasure").addEventListener("change", (e) => {
+      clearInterval(autoTimer);
+      if (e.target.checked) autoTimer = setInterval(() => {
+        S.tick++;
+        update();
+      }, 250);
+    });
+    document.getElementById("btnRecal").addEventListener("click", () => {
+      recalibrate();
+      update();
+    });
+    document.querySelectorAll("[data-bind]").forEach((el) => {
+      el.addEventListener("input", () => onBound(el, el.type === "checkbox"));
+      if (el.type !== "checkbox") el.addEventListener("change", () => onBound(el, true));
+    });
+    document.querySelectorAll("[data-scene]").forEach((b) => b.addEventListener("click", () => {
+      if (b.dataset.scene === "live") loadScene(liveScene(), { rx: { x: 7.4, y: 3.2 } });
+      else if (b.dataset.scene === "six") {
+        const c = baseConfig();
+        c.env.walls = clone(STANDARD_WALLS);
+        loadScene(c, { rx: { x: 7.4, y: 3.2 } });
+      } else {
+        const c = liveScene();
+        c.env.walls = [];
+        c.env.aps = [2, 6, 10].map((x, i) => ({ id: `AP${i + 1}`, x, y: 4, offset: 0, enabled: true }));
+        loadScene(c, { rx: { x: 7, y: 6 } });
+      }
+      update();
+    }));
+    let rt = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(rt);
+      rt = setTimeout(() => {
+        if (S.tab === "exp") rerenderExperimentCharts();
+      }, 150);
+    });
+    fitView();
+    update();
+  }
+  window.FieldLab = { S, E: engine_exports };
+  boot();
+})();
+</script>
+</body>
+</html>

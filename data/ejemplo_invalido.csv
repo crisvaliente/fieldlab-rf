@@ -1,0 +1,4 @@
+experiment_id,sample_id,ap_id,rssi_dbm,x_m,y_m,role
+campo-01,m1,AP1,55,1.0,1.0,evaluation
+campo-01,m2,AP1,-60,,,calibration
+campo-01,m3,AP1,"-58,5",2.0,1.0,evaluation
