@@ -2,6 +2,8 @@
 
 Laboratorio interactivo para estudiar posicionamiento en interiores con intensidad de señal Wi-Fi (RSSI). Primer instrumento experimental de JUMP LAB.
 
+> Origen: continúa la línea de trabajo de WiFi Sensing 3D (repositorio `wifi-sensing`, archivado).
+
 Es una herramienta de estudio. Todos los datos que genera son **sintéticos** y salen de un modelo de propagación simplificado. No está validada con hardware real y no es un sistema de localización ni de seguimiento de personas.
 
 ## Qué hace
